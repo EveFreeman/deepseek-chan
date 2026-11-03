@@ -91,6 +91,7 @@ function defaultConfig() {
     historyTurns: 20,
     tts: {
       engine: 'gptsovits',
+      idleMinutes: 10,
       gptsovits: { dir: null, python: null, refAudio: null, refText: DEFAULT_REF_TEXT, speed: 1, device: 'auto' },
       openai: { baseUrl: 'https://api.openai.com/v1', model: '', voice: 'alloy', keyEnc: null, pricePerMChars: 0 },
     },
@@ -135,6 +136,7 @@ function load() {
   if (OLD_PERSONAS.includes(config.persona)) config.persona = DEFAULT_PERSONA;
   if (!ENGINES.includes(config.tts.engine)) config.tts.engine = 'gptsovits';
   if (!SOVITS_DEVICES.includes(config.tts.gptsovits.device)) config.tts.gptsovits.device = 'auto';
+  if (!(config.tts.idleMinutes >= 0)) config.tts.idleMinutes = 10;
   return config;
 }
 

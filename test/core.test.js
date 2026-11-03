@@ -330,3 +330,26 @@ test('voice language follows the script, kana before kanji', () => {
   assert.strictEqual(detectLang('안녕하세요, 漢字도 섞어요.'), 'ko');
   assert.strictEqual(detectLang('Hello there.'), 'en');
 });
+
+test('a helper stops after its idle time, never while working, and 0 keeps it on', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { idleStopper } = require('../src/main/idle');
+  let stops = 0;
+  const idle = idleStopper(() => { stops++; });
+  idle.setMinutes(10);
+  let finish;
+  const work = idle.during(() => new Promise((resolve) => { finish = resolve; }));
+  t.mock.timers.tick(11 * 60000);
+  assert.strictEqual(stops, 0);
+  finish();
+  await work;
+  t.mock.timers.tick(9 * 60000);
+  idle.touch();
+  t.mock.timers.tick(9 * 60000);
+  assert.strictEqual(stops, 0);
+  t.mock.timers.tick(60000);
+  assert.strictEqual(stops, 1);
+  idle.setMinutes(0);
+  t.mock.timers.tick(60 * 60000);
+  assert.strictEqual(stops, 1);
+});

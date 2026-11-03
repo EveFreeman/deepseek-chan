@@ -75,6 +75,8 @@ contextBridge.exposeInMainWorld('api', {
   onBriefing: on('char:briefing'),
   transcribe: (audio) => ipcRenderer.invoke('voice:transcribe', audio),
   prepareVoice: () => ipcRenderer.invoke('voice:prepare'),
+  warmVoice: () => ipcRenderer.send('voice:warm'),
+  warmSpeech: () => ipcRenderer.send('tts:warm'),
   remember: (text) => ipcRenderer.invoke('memory:add', text),
   memories: () => ipcRenderer.invoke('memory:list'),
   forget: (index) => ipcRenderer.invoke('memory:forget', index),

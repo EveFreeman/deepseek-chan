@@ -697,6 +697,26 @@ function sovitsConfig() {
   };
 }
 
+function sttPaths() {
+  return {
+    python: sovitsConfig().python,
+    script: inProject('scripts', 'python', 'stt_worker.py'),
+    modelDir: inProject('runtime', 'whisper'),
+  };
+}
+
+// The voice server and the recognizer each hold gigabytes; they stop after an idle spell.
+function setVoiceIdle() {
+  const minutes = store.load().tts.idleMinutes;
+  gptsovits.setIdle(minutes);
+  stt.setIdle(minutes);
+}
+
+function warmSpeech() {
+  if (muted || store.load().tts.engine !== 'gptsovits') return;
+  gptsovits.warm(sovitsConfig()).catch(() => { /* reported on first speech */ });
+}
+
 function findSovitsPython() {
   const file = process.platform === 'win32' ? inProject('runtime', 'env', 'python.exe') : inProject('runtime', 'env', 'bin', 'python');
   return fs.existsSync(file) ? file : null;
@@ -730,6 +750,7 @@ function registerIpc() {
     store.update(patch);
     // A running server keeps its device; the next sentence starts one on the new choice.
     if (store.load().tts.gptsovits.device !== device) gptsovits.stop();
+    setVoiceIdle();
     broadcast('config:changed');
     return store.publicConfig();
   });
@@ -750,6 +771,7 @@ function registerIpc() {
   ipcMain.handle('tts:key', (_e, key) => { store.setTtsKey(key); });
   ipcMain.handle('tts:speak', (_e, text) => speak(text));
   ipcMain.handle('tts:status', () => sovitsConfig());
+  ipcMain.on('tts:warm', () => warmSpeech());
   ipcMain.handle('tts:pickRef', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(controlWin ?? undefined, {
       properties: ['openFile'],
@@ -846,11 +868,12 @@ function registerIpc() {
     if (IS_MAC && systemPreferences.getMediaAccessStatus('microphone') === 'denied') {
       throw new Error('마이크 권한이 없어요. 시스템 설정 > 개인정보 보호 및 보안 > 마이크에서 Electron을 허용해 주세요.');
     }
-    return stt.transcribe(audio, {
-      python: sovitsConfig().python,
-      script: inProject('scripts', 'python', 'stt_worker.py'),
-      modelDir: inProject('runtime', 'whisper'),
-    });
+    return stt.transcribe(audio, sttPaths());
+  });
+  // Recording has started: load the recognizer, and the voice for the reply that follows.
+  ipcMain.on('voice:warm', () => {
+    stt.warm(sttPaths()).catch(() => { /* reported when the recording is sent */ });
+    warmSpeech();
   });
   ipcMain.handle('voice:prepare', () => (IS_MAC ? systemPreferences.askForMediaAccess('microphone') : true));
 
@@ -954,7 +977,8 @@ if (isFirstInstance) app.whenReady().then(() => {
   if (!findModelDir()) openControl('character');
   setInterval(tickAssist, REMINDER_CHECK_MS);
   charWin.webContents.once('did-finish-load', () => setTimeout(greet, 2500));
-  if (store.load().tts.engine === 'gptsovits') gptsovits.ensureServer(sovitsConfig()).catch(() => { /* reported on first speech */ });
+  setVoiceIdle();
+  warmSpeech();
   if (process.env.DSC_TEST_HOOK) require(process.env.DSC_TEST_HOOK)({ getChar: () => charWin, openControl, getControl: () => controlWin, setMode, assist, quickSelection });
 });
 

@@ -1,8 +1,9 @@
-// Client for a local GPT-SoVITS api_v2 server. The server is started on demand
-// and stopped with the app; a server that is already running is reused.
+// Client for a local GPT-SoVITS api_v2 server. The server is started on demand and
+// stopped with the app or after an idle spell; a server that is already running is reused.
 const { execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { idleStopper } = require('./idle');
 
 const HOST = '127.0.0.1';
 const PORT = 9880;
@@ -17,6 +18,7 @@ let child = null;
 let starting = null;
 let queue = Promise.resolve();
 let log = '';
+const idle = idleStopper(() => stop());
 
 async function alive() {
   try {
@@ -82,7 +84,7 @@ function launch({ dir, python, device: choice }) {
 }
 
 function ensureServer(config) {
-  starting ??= (async () => {
+  starting ??= idle.during(async () => {
     try {
       if (await alive()) return;
       if (!child) launch(config);
@@ -90,8 +92,18 @@ function ensureServer(config) {
     } finally {
       starting = null;
     }
-  })();
+  });
   return starting;
+}
+
+// Starts the server ahead of a reply (the user is typing or talking), so that the first
+// sentence does not wait for the models to load.
+function warm(config) {
+  if (child && !starting) {
+    idle.touch();
+    return Promise.resolve();
+  }
+  return ensureServer(config);
 }
 
 async function request(text, lang, config) {
@@ -131,14 +143,15 @@ function normalize(wav) {
 
 // The server handles one synthesis at a time, so sentences wait their turn.
 function speak(text, lang, config) {
-  const job = queue.then(() => request(text, lang, config));
+  const job = queue.then(() => idle.during(() => request(text, lang, config)));
   queue = job.catch(() => {});
   return job;
 }
 
 function stop() {
+  idle.cancel();
   child?.kill();
   child = null;
 }
 
-module.exports = { speak, ensureServer, stop, pythonEnv };
+module.exports = { speak, ensureServer, warm, stop, setIdle: idle.setMinutes, pythonEnv };

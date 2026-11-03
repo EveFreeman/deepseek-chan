@@ -1,6 +1,7 @@
 const BUBBLE_SPACE = 140; // px kept free above the character at scale 1
 const DRAG_THRESHOLD = 4;
 const NOD_INTERVAL = 2500;
+const WARM_INTERVAL = 30000; // how often typing tells the voice server it will be needed
 const IDLE_CHECK_MS = 500;
 const IDLE_FIRST_SECONDS = 15;
 const IDLE_GAP_SECONDS = [14, 38]; // quiet time between idle acts
@@ -306,6 +307,11 @@ input.addEventListener('keydown', (e) => {
 input.addEventListener('input', () => {
   character.listen(true);
   refreshPalette();
+  // A reply is coming: have the voice server up before its first sentence.
+  if (performance.now() - lastWarm > WARM_INTERVAL) {
+    lastWarm = performance.now();
+    window.api.warmSpeech();
+  }
   // An occasional small nod shows she is following along.
   if (performance.now() - lastNod > NOD_INTERVAL) {
     lastNod = performance.now();
@@ -736,6 +742,7 @@ async function startVoice() {
     return undefined;
   };
   recorder.start();
+  window.api.warmVoice();
   micButton.classList.add('recording');
   character.listen(true);
   showBubble('듣고 있어요…', 'thinking');
@@ -883,6 +890,7 @@ window.api.onAttachments(setAttached);
 let interactive = false;
 let drag = null;
 let lastNod = 0;
+let lastWarm = -Infinity;
 
 function setInteractive(on) {
   if (on === interactive) return;

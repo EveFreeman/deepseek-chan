@@ -162,6 +162,7 @@ function fillVoice() {
   $('g-ref-text').value = t.gptsovits.refText;
   $('g-speed').value = t.gptsovits.speed;
   $('g-device').value = t.gptsovits.device;
+  $('v-idle').value = t.idleMinutes;
   window.api.ttsStatus().then((sovits) => {
     $('g-sovits-dir').value = sovits.dir;
     $('g-python').value = sovits.python ?? '';
@@ -183,6 +184,7 @@ async function saveVoice() {
   settings = await window.api.setConfig({
     tts: {
       engine: $('v-engine').value,
+      idleMinutes: Math.max(0, Math.round(num('v-idle'))),
       gptsovits: {
         dir: $('g-sovits-dir').value.trim() || null,
         python: $('g-python').value.trim() || null,

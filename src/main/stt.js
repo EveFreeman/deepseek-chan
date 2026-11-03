@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { pythonEnv } = require('./gptsovits');
+const { idleStopper } = require('./idle');
 
 const TIMEOUT = 60000;
 
@@ -12,6 +13,7 @@ let child = null;
 let lines = null;
 let ready = null;
 let queue = Promise.resolve();
+const idle = idleStopper(() => stop());
 
 function nextLine() {
   return new Promise((resolve, reject) => {
@@ -51,15 +53,21 @@ async function recognize(audio, paths) {
 
 // One at a time: the worker answers in order.
 function transcribe(audio, paths) {
-  const job = queue.then(() => recognize(audio, paths));
+  const job = queue.then(() => idle.during(() => recognize(audio, paths)));
   queue = job.catch(() => {});
   return job;
 }
 
+// Loads the model while the user is still speaking.
+function warm(paths) {
+  return idle.during(() => start(paths));
+}
+
 function stop() {
+  idle.cancel();
   child?.kill();
   child = null;
   ready = null;
 }
 
-module.exports = { transcribe, stop };
+module.exports = { transcribe, warm, stop, setIdle: idle.setMinutes };

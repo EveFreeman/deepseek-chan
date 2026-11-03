@@ -37,7 +37,9 @@ async function waitUntilUp() {
   throw new Error('GPT-SoVITS 서버가 제시간에 시작되지 않았습니다.');
 }
 
-function detectDevice() {
+// 'cpu' is the user's choice, e.g. a laptop that powers the GPU down on battery.
+function detectDevice(choice) {
+  if (choice === 'cpu') return 'cpu';
   if (process.platform === 'darwin') return 'mps';
   try {
     execSync('nvidia-smi', { stdio: 'ignore', windowsHide: true });
@@ -48,10 +50,10 @@ function detectDevice() {
 }
 
 // The server only reads its device from this file's `custom` section.
-function setDevice(dir) {
+function setDevice(dir, device) {
   const file = path.join(dir, CONFIG_FILE);
   const text = fs.readFileSync(file, 'utf8');
-  fs.writeFileSync(file, text.replace(/^(custom:[\s\S]*?\n  device: ).*$/m, `$1${detectDevice()}`));
+  fs.writeFileSync(file, text.replace(/^(custom:[\s\S]*?\n  device: ).*$/m, `$1${device}`));
 }
 
 // The environment's own tools (ffmpeg among them) come first on PATH.
@@ -63,12 +65,15 @@ function pythonEnv(python) {
   return { ...process.env, PATH: [...dirs, process.env.PATH].join(path.delimiter), PYTHONUTF8: '1' };
 }
 
-function launch({ dir, python }) {
+function launch({ dir, python, device: choice }) {
   if (!dir || !fs.existsSync(path.join(dir, 'api_v2.py'))) throw new Error('GPT-SoVITS 폴더를 찾지 못했습니다. 설정 > 음성에서 지정해 주세요.');
   if (!python || !fs.existsSync(python)) throw new Error('GPT-SoVITS가 설치되지 않았습니다. 설치 스크립트(setup)를 실행해 주세요.');
-  setDevice(dir);
+  const device = detectDevice(choice);
+  setDevice(dir, device);
+  // Hiding CUDA keeps PyTorch from waking a powered-down GPU just to probe it.
+  const env = device === 'cpu' ? { ...pythonEnv(python), CUDA_VISIBLE_DEVICES: '-1' } : pythonEnv(python);
   log = '';
-  child = spawn(python, ['api_v2.py', '-a', HOST, '-p', String(PORT), '-c', CONFIG_FILE], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: pythonEnv(python) });
+  child = spawn(python, ['api_v2.py', '-a', HOST, '-p', String(PORT), '-c', CONFIG_FILE], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env });
   const collect = (data) => { log = (log + data).slice(-2000); };
   child.stdout.on('data', collect);
   child.stderr.on('data', collect);

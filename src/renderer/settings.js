@@ -161,6 +161,7 @@ function fillVoice() {
   $('v-engine').value = t.engine;
   $('g-ref-text').value = t.gptsovits.refText;
   $('g-speed').value = t.gptsovits.speed;
+  $('g-device').value = t.gptsovits.device;
   window.api.ttsStatus().then((sovits) => {
     $('g-sovits-dir').value = sovits.dir;
     $('g-python').value = sovits.python ?? '';
@@ -188,6 +189,7 @@ async function saveVoice() {
         refAudio: $('g-ref').value || null,
         refText: $('g-ref-text').value.trim(),
         speed: num('g-speed') || 1,
+        device: $('g-device').value,
       },
       openai: {
         baseUrl: $('v-url').value.trim(),

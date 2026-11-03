@@ -726,7 +726,10 @@ async function speak(text) {
 function registerIpc() {
   ipcMain.handle('config:get', () => store.publicConfig());
   ipcMain.handle('config:set', (_e, patch) => {
+    const device = store.load().tts.gptsovits.device;
     store.update(patch);
+    // A running server keeps its device; the next sentence starts one on the new choice.
+    if (store.load().tts.gptsovits.device !== device) gptsovits.stop();
     broadcast('config:changed');
     return store.publicConfig();
   });

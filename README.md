@@ -66,7 +66,7 @@ ZIP으로 받아도 됩니다. Windows는 `C:\deepseek-chan`처럼 짧고 영문
 
 ## 음성
 
-기본 엔진은 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) v2ProPlus입니다. 참조 음성의 목소리로 한국어, 일본어, 영어를 합성하며, 앱이 로컬 서버를 켜고 끕니다. 실행 장치는 앱이 고릅니다(Mac은 mps, NVIDIA는 cuda, 그 외 cpu).
+기본 엔진은 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) v2ProPlus입니다. 참조 음성의 목소리로 한국어, 일본어, 영어를 합성하며, 앱이 로컬 서버를 켜고 끕니다. 실행 장치는 설정 > 음성에서 고릅니다. 자동이면 Mac은 mps, NVIDIA는 cuda, 그 외는 cpu이고, 배터리에서 GPU를 끄는 노트북은 CPU로 두면 됩니다. 서버는 약 4~5GB의 RAM을 씁니다.
 
 - 설치 스크립트는 GPT-SoVITS를 정해진 커밋으로 받고, Python 패키지는 함께 검증한 버전(`scripts/python/constraints.txt`)으로 설치합니다. 컴파일러가 필요한 `jieba_fast`와 Windows의 `eunjeon`은 `scripts/python/shims/`의 대체 모듈을 씁니다.
 - 참조 텍스트(설정 > 음성)는 참조 음성의 대사와 같아야 합니다. 언어는 텍스트에서 자동으로 판별합니다.

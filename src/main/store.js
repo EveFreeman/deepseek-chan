@@ -76,6 +76,7 @@ const OLD_PERSONAS = [`너는 "딥시크쨩"이다. DeepSeek의 고래 로고를
 const DEFAULT_REF_TEXT = '軽妙洒脱なナレーションから、情緒感溢れる語りまで、幅広い表現力を持つ。';
 
 const ENGINES = ['gptsovits', 'openai', 'off'];
+const SOVITS_DEVICES = ['auto', 'cpu'];
 
 function defaultConfig() {
   const preset = PRESETS[0];
@@ -90,7 +91,7 @@ function defaultConfig() {
     historyTurns: 20,
     tts: {
       engine: 'gptsovits',
-      gptsovits: { dir: null, python: null, refAudio: null, refText: DEFAULT_REF_TEXT, speed: 1 },
+      gptsovits: { dir: null, python: null, refAudio: null, refText: DEFAULT_REF_TEXT, speed: 1, device: 'auto' },
       openai: { baseUrl: 'https://api.openai.com/v1', model: '', voice: 'alloy', keyEnc: null, pricePerMChars: 0 },
     },
     character: { mode: 'full', scale: 1, modelDir: null, alwaysOnTop: true, bubbleSeconds: 8, bounds: null },
@@ -133,6 +134,7 @@ function load() {
   config = merge(defaultConfig(), saved);
   if (OLD_PERSONAS.includes(config.persona)) config.persona = DEFAULT_PERSONA;
   if (!ENGINES.includes(config.tts.engine)) config.tts.engine = 'gptsovits';
+  if (!SOVITS_DEVICES.includes(config.tts.gptsovits.device)) config.tts.gptsovits.device = 'auto';
   return config;
 }
 

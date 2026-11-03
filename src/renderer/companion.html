@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: dsc-model:; connect-src 'self' data: blob: dsc-model:; media-src blob:">
+<title>DeepSeek-chan</title>
+<link rel="stylesheet" href="companion.css">
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="bubble" hidden><div id="bubble-text"></div><div id="bubble-foot" hidden></div></div>
+<div id="tray" hidden></div>
+<div id="drop-hint" hidden>놓으면 첨부돼요</div>
+<div id="confirm" hidden>
+  <p id="confirm-text"></p>
+  <img id="confirm-image" alt="화면 미리보기">
+  <div class="confirm-actions">
+    <button type="button" id="confirm-no">취소</button>
+    <button type="button" id="confirm-yes">보내기</button>
+  </div>
+</div>
+<ul id="palette" hidden></ul>
+<form id="input-bar" hidden>
+  <button type="button" id="attach-button" title="파일 첨부" aria-label="파일 첨부">+</button>
+  <textarea id="input" rows="1" placeholder="무엇을 도와드릴까요?"></textarea>
+  <button type="button" id="mic-button" title="음성 입력" aria-label="음성 입력">🎙</button>
+  <button type="submit" title="보내기 (Enter)" aria-label="보내기">↑</button>
+</form>
+<script src="../../vendor/live2dcubismcore.min.js"></script>
+<script src="../../node_modules/pixi.js/dist/browser/pixi.min.js"></script>
+<script src="../../vendor/cubism4.patched.js"></script>
+<script src="../shared/motions.js"></script>
+<script src="../shared/speech-parser.js"></script>
+<script src="../shared/commands.js"></script>
+<script src="../shared/reminders.js"></script>
+<script src="character.js"></script>
+<script src="companion.js"></script>
+</body>
+</html>

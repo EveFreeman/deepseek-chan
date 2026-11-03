@@ -1,0 +1,18 @@
+# Installed by setup-mac.command / setup-windows.bat
+/node_modules/
+/runtime/
+/vendor/
+/DeepSeek-chan.app/
+
+# Your own files: not redistributable, so never committed
+/live2d/*
+!/live2d/README.md
+/voice/*
+!/voice/README.md
+/custom/
+
+# Settings, API keys (encrypted), conversation logs
+/data/
+
+.DS_Store
+__pycache__/

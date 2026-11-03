@@ -17,7 +17,7 @@ DeepSeek-chan Live2D 모델로 만든 macOS/Windows 데스크톱 어시스턴트
 ### 1. 내려받기
 
 ```bash
-git clone <이 저장소 주소> deepseek-chan
+git clone https://github.com/EveFreeman/deepseek-chan.git
 ```
 
 ZIP으로 받아도 됩니다. Windows는 `C:\deepseek-chan`처럼 짧고 영문인 경로에 두세요. 긴 경로나 한글 경로에서는 Python 패키지 설치가 실패할 수 있습니다.

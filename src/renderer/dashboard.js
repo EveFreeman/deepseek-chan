@@ -6,12 +6,13 @@ const dash = { days: 30, currency: 'USD', records: [], config: null };
 
 const $ = (id) => document.getElementById(id);
 
-// An optional picture of the user's own, custom/dashboard.png. Not shipped with the app.
+// The user's own custom/dashboard.png wins over the bundled picture.
 {
   const img = $('mascot').querySelector('img');
-  const show = () => { $('mascot').hidden = !img.naturalWidth; };
-  img.addEventListener('load', show);
-  if (img.complete) show();
+  const sources = ['../../custom/dashboard.png', '../../assets/dashboard.png'];
+  img.addEventListener('load', () => { $('mascot').hidden = false; });
+  img.addEventListener('error', () => { if (sources.length) img.src = sources.shift(); });
+  img.src = sources.shift();
 }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);

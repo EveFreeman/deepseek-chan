@@ -51,7 +51,7 @@ ZIP으로 받아도 됩니다. Windows는 `C:\deepseek-chan`처럼 짧고 영문
 
 ### 선택: 내 그림 넣기
 
-`custom/dashboard.png`를 두면 대시보드에 표시합니다. 정사각형이 잘 맞습니다. `custom/`은 git에 올라가지 않습니다.
+`custom/dashboard.png`를 두면 대시보드의 기본 그림(`assets/dashboard.png`) 대신 표시합니다. 정사각형이 잘 맞습니다. `custom/`은 git에 올라가지 않습니다.
 
 ## 폴더 구성
 

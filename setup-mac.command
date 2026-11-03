@@ -32,6 +32,9 @@ if [ ! -x "$RT/node/bin/node" ]; then
 fi
 export PATH="$RT/node/bin:$PATH"
 
+# In a git clone, refuse commits that would publish settings, keys or logs.
+if [ -d .git ] && command -v git >/dev/null; then git config core.hooksPath scripts/git-hooks; fi
+
 echo; echo "[2/4] App files"
 npm install
 # Newer npm skips install scripts of dependencies, so Electron is fetched here.

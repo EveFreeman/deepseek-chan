@@ -58,6 +58,8 @@ $env:PATH = "$nodeDir;$env:PATH"
 
 Write-Host "`n[2/5] App files" -ForegroundColor Cyan
 Set-Location $root
+# In a git clone, refuse commits that would publish settings, keys or logs.
+if ((Test-Path '.git') -and (Get-Command git -ErrorAction SilentlyContinue)) { git config core.hooksPath scripts/git-hooks }
 if (Test-Path 'node_modules\electron\dist\Electron.app') { Remove-Item 'node_modules' -Recurse -Force } # copied from a Mac
 Run (Join-Path $nodeDir 'npm.cmd') install
 # Newer npm skips install scripts of dependencies, so Electron is fetched here.

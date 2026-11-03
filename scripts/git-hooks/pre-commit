@@ -1,0 +1,34 @@
+#!/bin/sh
+# Refuses a commit that would publish personal data. .gitignore keeps these files out
+# of `git add .`, but not out of `git add -f`; this catches that and stray secrets.
+# Enabled by the setup scripts (git config core.hooksPath scripts/git-hooks).
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+failed=0
+
+# Settings, encrypted keys, conversation logs and usage live in data/. The rest are
+# installed files, or the model and voice, which may not be redistributed.
+paths=$(printf '%s\n' "$staged" | grep -E '^(data|runtime|custom|vendor|node_modules|DeepSeek-chan\.app)/|^(live2d|voice)/' \
+  | grep -vE '^(live2d|voice)/README\.md$')
+names=$(printf '%s\n' "$staged" | grep -E '(^|/)(config\.json|history\.json|transcript\.jsonl|usage\.jsonl|assist\.json|session\.json|\.env)$')
+if [ -n "$paths$names" ]; then
+  echo "pre-commit: these files hold personal data or may not be redistributed:"
+  printf '%s\n%s\n' "$paths" "$names" | grep -v '^$' | sort -u | sed 's/^/  /'
+  failed=1
+fi
+
+# Added lines that look like keys: DeepSeek/OpenAI, GitHub, AWS, private keys, and
+# this app's encrypted key field.
+secrets=$(git diff --cached -U0 --no-color | grep -E '^\+' | grep -v '^+++' \
+  | grep -nE 'sk-[A-Za-z0-9_-]{32,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|"keyEnc": *"[A-Za-z0-9+/=]{16,}"')
+if [ -n "$secrets" ]; then
+  echo "pre-commit: staged changes contain what looks like a key or token:"
+  printf '%s\n' "$secrets" | cut -c1-120 | sed 's/^/  /'
+  failed=1
+fi
+
+if [ "$failed" = 1 ]; then
+  echo "Unstage them (git restore --staged <file>) and commit again."
+  exit 1
+fi

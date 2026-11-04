@@ -71,15 +71,14 @@ def fetch_sovits():
 
 
 def torch_index():
-    """PyTorch's own index for this machine, or None for PyPI (macOS)."""
+    """PyTorch's own index for this machine, or None for PyPI (macOS).
+
+    Windows gets the CPU build even with an NVIDIA card: the app synthesizes on the CPU
+    there, and the CUDA build is about 3 GB more to download.
+    """
     if sys.platform == "darwin":
         return None
-    smi = shutil.which("nvidia-smi")
-    if not smi:
-        return "https://download.pytorch.org/whl/cpu"
-    names = subprocess.run([smi, "--query-gpu=name", "--format=csv,noheader"], capture_output=True, text=True).stdout
-    # RTX 50 (Blackwell) needs CUDA 12.8 or newer; older cards are covered by 12.6.
-    return "https://download.pytorch.org/whl/" + ("cu130" if re.search(r"RTX\s*50\d\d", names) else "cu126")
+    return "https://download.pytorch.org/whl/cpu"
 
 
 def requirements():

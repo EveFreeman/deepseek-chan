@@ -1,6 +1,6 @@
 // Client for a local GPT-SoVITS api_v2 server. The server is started on demand and
 // stopped with the app or after an idle spell; a server that is already running is reused.
-const { execSync, spawn } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { idleStopper } = require('./idle');
@@ -39,16 +39,11 @@ async function waitUntilUp() {
   throw new Error('GPT-SoVITS 서버가 제시간에 시작되지 않았습니다.');
 }
 
-// 'cpu' is the user's choice, e.g. a laptop that powers the GPU down on battery.
-function detectDevice(choice) {
-  if (choice === 'cpu') return 'cpu';
-  if (process.platform === 'darwin') return 'mps';
-  try {
-    execSync('nvidia-smi', { stdio: 'ignore', windowsHide: true });
-    return 'cuda';
-  } catch {
-    return 'cpu';
-  }
+// Only Macs use the GPU. On Windows CUDA was no faster than the CPU for these short
+// sentences, reserved most of the VRAM in bursts, and laptops power the GPU down on
+// battery. 'cpu' on a Mac is the user's choice.
+function detectDevice(choice, platform = process.platform) {
+  return platform === 'darwin' && choice !== 'cpu' ? 'mps' : 'cpu';
 }
 
 // The server only reads its device from this file's `custom` section.
@@ -154,4 +149,4 @@ function stop() {
   child = null;
 }
 
-module.exports = { speak, ensureServer, warm, stop, setIdle: idle.setMinutes, pythonEnv };
+module.exports = { speak, ensureServer, warm, stop, setIdle: idle.setMinutes, pythonEnv, detectDevice };

@@ -162,6 +162,7 @@ function fillVoice() {
   $('g-ref-text').value = t.gptsovits.refText;
   $('g-speed').value = t.gptsovits.speed;
   $('g-device').value = t.gptsovits.device;
+  $('g-device-row').hidden = !IS_MAC; // Windows always synthesizes on the CPU
   $('v-idle').value = t.idleMinutes;
   window.api.ttsStatus().then((sovits) => {
     $('g-sovits-dir').value = sovits.dir;

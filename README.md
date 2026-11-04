@@ -8,7 +8,7 @@ DeepSeek-chan Live2D 모델로 만든 macOS/Windows 데스크톱 어시스턴트
 |---|---|---|
 | 지원 | Apple Silicon (M1 이상) | Windows 10/11 64비트 |
 | 디스크 | 약 8GB | 약 10GB |
-| 그래픽 | | NVIDIA면 음성이 빠릅니다. 없으면 CPU로 느리게 동작합니다 |
+| 그래픽 | | 필요 없습니다. 음성은 CPU로 합성합니다 |
 
 미리 설치할 것은 없습니다. 설치 스크립트가 Node.js, Python, 음성 엔진을 모두 이 폴더의 `runtime/`에 넣습니다. 시스템 PATH, 레지스트리, Homebrew, 사용자 폴더를 건드리지 않으며, 지우려면 폴더를 삭제하면 됩니다.
 
@@ -66,7 +66,7 @@ ZIP으로 받아도 됩니다. Windows는 `C:\deepseek-chan`처럼 짧고 영문
 
 ## 음성
 
-기본 엔진은 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) v2ProPlus입니다. 참조 음성의 목소리로 한국어, 일본어, 영어를 합성하며, 앱이 로컬 서버를 켜고 끕니다. 실행 장치는 설정 > 음성에서 고릅니다. 자동이면 Mac은 mps, NVIDIA는 cuda, 그 외는 cpu이고, 배터리에서 GPU를 끄는 노트북은 CPU로 두면 됩니다. 서버는 약 4~5GB의 RAM을 씁니다.
+기본 엔진은 [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) v2ProPlus입니다. 참조 음성의 목소리로 한국어, 일본어, 영어를 합성하며, 앱이 로컬 서버를 켜고 끕니다. Mac은 GPU(mps)로, Windows는 NVIDIA 그래픽카드가 있어도 CPU로 합성합니다. 짧은 문장에서는 CUDA가 CPU보다 빠르지 않았고 VRAM을 순간적으로 대부분 차지했기 때문입니다. Mac도 설정 > 음성에서 CPU로 바꿀 수 있습니다. 서버는 약 4~5GB의 RAM을 씁니다.
 
 - 설치 스크립트는 GPT-SoVITS를 정해진 커밋으로 받고, Python 패키지는 함께 검증한 버전(`scripts/python/constraints.txt`)으로 설치합니다. 컴파일러가 필요한 `jieba_fast`와 Windows의 `eunjeon`은 `scripts/python/shims/`의 대체 모듈을 씁니다.
 - 참조 텍스트(설정 > 음성)는 참조 음성의 대사와 같아야 합니다. 언어는 텍스트에서 자동으로 판별합니다.

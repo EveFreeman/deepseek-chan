@@ -353,3 +353,11 @@ test('a helper stops after its idle time, never while working, and 0 keeps it on
   t.mock.timers.tick(60 * 60000);
   assert.strictEqual(stops, 1);
 });
+
+test('voice synthesis uses the GPU only on a Mac, and never CUDA', () => {
+  const { detectDevice } = require('../src/main/gptsovits');
+  assert.strictEqual(detectDevice('auto', 'darwin'), 'mps');
+  assert.strictEqual(detectDevice('cpu', 'darwin'), 'cpu');
+  assert.strictEqual(detectDevice('auto', 'win32'), 'cpu');
+  assert.strictEqual(detectDevice('cpu', 'win32'), 'cpu');
+});

@@ -28,6 +28,7 @@ const RENDERER = path.join(__dirname, '../renderer');
 
 // Window size per character mode, at scale 1. Top space is kept for the bubble.
 const SIZES = { full: { width: 400, height: 790 }, sd: { width: 340, height: 460 } };
+const TOPMOST_CHECK_MS = 2000;
 const SCALES = [0.7, 0.85, 1, 1.25, 1.5];
 
 // The app stays self-contained, so settings and history live in the project folder.
@@ -129,6 +130,13 @@ function applyAlwaysOnTop() {
   const on = store.load().character.alwaysOnTop;
   charWin.setAlwaysOnTop(on, 'floating');
   if (IS_MAC) charWin.setVisibleOnAllWorkspaces(on, { visibleOnFullScreen: on });
+}
+
+// Windows can drop the window out of the topmost band on its own, e.g. when a laptop
+// powers its GPU down and the displays are reset; she then sits behind every window.
+function keepOnTop() {
+  if (!charWin?.isVisible() || !store.load().character.alwaysOnTop) return;
+  if (!charWin.isAlwaysOnTop()) applyAlwaysOnTop();
 }
 
 // A file dropped outside the drop handlers would otherwise replace the page.
@@ -976,6 +984,7 @@ if (isFirstInstance) app.whenReady().then(() => {
   registerShortcuts();
   if (!findModelDir()) openControl('character');
   setInterval(tickAssist, REMINDER_CHECK_MS);
+  setInterval(keepOnTop, TOPMOST_CHECK_MS);
   charWin.webContents.once('did-finish-load', () => setTimeout(greet, 2500));
   setVoiceIdle();
   warmSpeech();

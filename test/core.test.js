@@ -395,3 +395,61 @@ test('voice synthesis on a CPU uses half the cores, at most 8 threads', () => {
   assert.strictEqual(cpuThreads(4).OMP_NUM_THREADS, '2');
   assert.strictEqual(cpuThreads(1).OMP_NUM_THREADS, '1');
 });
+
+test('an update reinstalls npm packages or asks for setup only when their files changed', () => {
+  const { planAfter } = require('../src/main/updater');
+  assert.deepStrictEqual(planAfter(['src/main/index.js'], '^45', '^45'), { npm: false, electron: false, setup: false });
+  assert.deepStrictEqual(planAfter(['package-lock.json'], '^45', '^45'), { npm: true, electron: false, setup: false });
+  assert.deepStrictEqual(planAfter(['scripts/patch-live2d.js'], '^45', '^45').npm, true);
+  assert.deepStrictEqual(planAfter(['scripts/python/setup_engines.py'], '^45', '^45'), { npm: false, electron: false, setup: true });
+  assert.deepStrictEqual(planAfter(['package.json'], '^45', '^46'), { npm: true, electron: true, setup: true });
+});
+
+test('an update fast-forwards a git clone and never overwrites local edits', async () => {
+  const { execFileSync } = require('child_process');
+  const { updater } = require('../src/main/updater');
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-update-'));
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: path.join(base, 'gitconfig') } }).trim();
+  fs.writeFileSync(path.join(base, 'gitconfig'), '[user]\n\tname = test\n\temail = test@example.com\n[init]\n\tdefaultBranch = main\n[core]\n\tautocrlf = false\n');
+  const remote = path.join(base, 'remote.git');
+  const author = path.join(base, 'author');
+  const app = path.join(base, 'app');
+  git(base, 'init', '--bare', remote);
+  git(base, 'clone', remote, author);
+  fs.writeFileSync(path.join(author, 'a.txt'), 'one\n');
+  git(author, 'add', '.');
+  git(author, 'commit', '-m', 'First');
+  git(author, 'push', 'origin', 'main');
+  git(base, 'clone', remote, app);
+
+  const prev = process.env.GIT_CONFIG_GLOBAL;
+  process.env.GIT_CONFIG_GLOBAL = path.join(base, 'gitconfig');
+  try {
+    const updates = updater(app);
+    assert.deepStrictEqual((await updates.check()).commits, []);
+    fs.writeFileSync(path.join(author, 'a.txt'), 'two\n');
+    git(author, 'commit', '-am', 'Second');
+    git(author, 'push', 'origin', 'main');
+    const found = await updates.check();
+    assert.deepStrictEqual(found.commits.map((c) => c.subject), ['Second']);
+
+    fs.writeFileSync(path.join(app, 'a.txt'), 'edited here\n');
+    await assert.rejects(updates.apply(), /고친 파일/);
+    assert.strictEqual(fs.readFileSync(path.join(app, 'a.txt'), 'utf8'), 'edited here\n');
+
+    git(app, 'checkout', '--', 'a.txt');
+    const result = await updates.apply();
+    assert.deepStrictEqual(result, { changed: ['a.txt'], npm: false, electron: false, setup: false });
+    assert.strictEqual(fs.readFileSync(path.join(app, 'a.txt'), 'utf8'), 'two\n');
+    assert.deepStrictEqual((await updates.check()).commits, []);
+    const shown = await updates.version();
+    assert.strictEqual(shown.commit, git(app, 'log', '-1', '--format=%h'));
+    assert.match(shown.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.deepStrictEqual(await updater(base).check(), { installed: false });
+    assert.strictEqual((await updater(base).version()).commit, null);
+  } finally {
+    if (prev === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+    else process.env.GIT_CONFIG_GLOBAL = prev;
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});

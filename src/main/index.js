@@ -19,6 +19,7 @@ const assist = require('./assist');
 const stt = require('./stt');
 const docs = require('./docs');
 const { grabSelection } = require('./selection');
+const { updater } = require('./updater');
 const { parseReminder } = require('../shared/reminders');
 const { chatCost, estimateTokens } = require('./pricing');
 
@@ -311,6 +312,7 @@ function refreshTray() {
     { label: '대화 기록', click: () => openControl('log') },
     { label: '사용량 대시보드', click: () => openControl('dashboard') },
     { label: '설정', click: () => openControl('connection') },
+    { label: updating ? '업데이트 중…' : pendingUpdate ? `업데이트 (변경 ${pendingUpdate.commits.length}개)` : '업데이트 확인', click: () => openControl('update') },
     { type: 'separator' },
     { label: '종료', click: () => app.quit() },
   ]));
@@ -323,6 +325,63 @@ function createTray() {
   if (!IS_MAC) tray.on('click', () => { charWin?.showInactive(); refreshTray(); });
   if (tray.getBounds().width === 0) tray.setTitle?.('DS');
   refreshTray();
+}
+
+// -------------------------------------------------------------------- updates
+
+const UPDATE_FIRST_CHECK_MS = 30000;
+const UPDATE_CHECK_MS = 6 * 3600000;
+const RESTART_DELAY_MS = 800;
+const updates = updater(app.getAppPath());
+let pendingUpdate = null;
+let updating = false;
+
+// The tray and an open settings window follow every change.
+function updateChanged() {
+  refreshTray();
+  broadcast('update:changed');
+}
+
+// In the background: silent when up to date or offline, and each new version is
+// announced only once.
+async function checkForUpdate() {
+  if (updating) return;
+  try {
+    const found = await updates.check();
+    pendingUpdate = found.commits?.length ? found : null;
+  } catch {
+    return;
+  }
+  updateChanged();
+  if (pendingUpdate && assist.get('updateAnnounced') !== pendingUpdate.head) {
+    assist.mark('updateAnnounced', pendingUpdate.head);
+    say('새 버전이 나왔어요! 설정의 업데이트에서 받을 수 있어요.', ['happy']);
+  }
+}
+
+// Started by the user, so git may open a GitHub login window if it needs one.
+async function checkUpdateNow() {
+  const found = await updates.check({ interactive: true });
+  pendingUpdate = found.commits?.length ? found : null;
+  updateChanged();
+  return { installed: found.installed, commits: found.commits ?? [] };
+}
+
+// Restarts into the new version, unless the setup script has to run first.
+async function installUpdate() {
+  if (updating) throw new Error('이미 업데이트하는 중입니다.');
+  updating = true;
+  updateChanged();
+  try {
+    const result = await updates.apply();
+    pendingUpdate = null;
+    // The settings window shows that it is restarting before it goes.
+    if (!result.setup) setTimeout(() => { app.relaunch(); app.quit(); }, RESTART_DELAY_MS);
+    return { setup: result.setup, restarting: !result.setup };
+  } finally {
+    updating = false;
+    updateChanged();
+  }
 }
 
 // ----------------------------------------------------------- selected text & voice
@@ -790,6 +849,14 @@ function registerIpc() {
     });
     return canceled ? null : filePaths[0];
   });
+  ipcMain.handle('update:info', async () => ({
+    ...(await updates.version()),
+    installed: fs.existsSync(inProject('.git')),
+    pending: pendingUpdate?.commits ?? null,
+    updating,
+  }));
+  ipcMain.handle('update:check', () => checkUpdateNow());
+  ipcMain.handle('update:apply', () => installUpdate());
   ipcMain.handle('model:status', () => ({ dir: findModelDir(), url: `${SCHEME}://model/${encodeURIComponent(MODEL_FILE)}` }));
   ipcMain.handle('model:pick', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(controlWin ?? undefined, { properties: ['openDirectory'] });
@@ -988,10 +1055,12 @@ if (isFirstInstance) app.whenReady().then(() => {
   if (!findModelDir()) openControl('character');
   setInterval(tickAssist, REMINDER_CHECK_MS);
   setInterval(keepOnTop, TOPMOST_CHECK_MS);
+  setTimeout(checkForUpdate, UPDATE_FIRST_CHECK_MS);
+  setInterval(checkForUpdate, UPDATE_CHECK_MS);
   charWin.webContents.once('did-finish-load', () => setTimeout(greet, 2500));
   setVoiceIdle();
   warmSpeech();
-  if (process.env.DSC_TEST_HOOK) require(process.env.DSC_TEST_HOOK)({ getChar: () => charWin, openControl, getControl: () => controlWin, setMode, assist, quickSelection });
+  if (process.env.DSC_TEST_HOOK) require(process.env.DSC_TEST_HOOK)({ getChar: () => charWin, openControl, getControl: () => controlWin, setMode, assist, quickSelection, checkForUpdate, checkUpdateNow, installUpdate });
 });
 
 app.on('window-all-closed', () => { /* lives in the tray */ });

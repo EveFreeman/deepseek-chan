@@ -7,6 +7,7 @@ function showTab(tab) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   if (tab === 'dashboard') refreshDashboard();
   if (tab === 'log') refreshLog();
+  if (tab === 'update') checkUpdate();
 }
 
 document.querySelector('nav').addEventListener('click', (e) => {
@@ -377,6 +378,61 @@ $('g-pick').addEventListener('click', async () => {
     flash('g-status', err.message.replace(/^Error invoking remote method '.*?': (Error: )?/, ''));
   }
 });
+
+// ---------------------------------------------------------------------- update
+
+const remoteError = (err) => err.message.replace(/^Error invoking remote method '.*?': (Error: )?/, '');
+let updateBusy = false;
+
+async function fillUpdate() {
+  const info = await window.api.updateInfo();
+  $('u-version').textContent = info.version ?? '';
+  $('u-commit').textContent = info.commit ? `${info.commit} · ${info.date}` : 'git으로 받은 폴더가 아니라서 앱에서 업데이트할 수 없습니다';
+  const pending = info.pending ?? [];
+  $('u-list').replaceChildren(...pending.map((c) => {
+    const li = document.createElement('li');
+    li.textContent = c.subject;
+    return li;
+  }));
+  $('u-check').disabled = !info.installed || info.updating || updateBusy;
+  $('u-apply').disabled = !pending.length || info.updating || updateBusy;
+  $('nav-update').textContent = pending.length ? `업데이트 (${pending.length})` : '업데이트';
+}
+
+async function checkUpdate() {
+  if (updateBusy) return;
+  updateBusy = true;
+  $('u-status').textContent = '확인 중…';
+  try {
+    await fillUpdate();
+    const { installed, commits } = await window.api.checkUpdate();
+    $('u-status').textContent = !installed ? '' : commits.length ? `새 변경 ${commits.length}개가 있습니다.` : '최신 버전입니다.';
+  } catch (err) {
+    $('u-status').textContent = `확인하지 못했습니다: ${remoteError(err)}`;
+  } finally {
+    updateBusy = false;
+    await fillUpdate();
+  }
+}
+
+$('u-check').addEventListener('click', checkUpdate);
+$('u-apply').addEventListener('click', async () => {
+  updateBusy = true;
+  $('u-status').textContent = '받는 중…';
+  await fillUpdate();
+  try {
+    const { setup } = await window.api.applyUpdate();
+    $('u-status').textContent = setup
+      ? `받았습니다. 앱을 종료하고 설치 스크립트(${IS_MAC ? 'setup-mac.command' : 'setup-windows.bat'})를 한 번 실행해 주세요.`
+      : '받았습니다. 다시 시작합니다…';
+  } catch (err) {
+    $('u-status').textContent = `업데이트하지 못했습니다: ${remoteError(err)}`;
+  } finally {
+    updateBusy = false;
+    await fillUpdate();
+  }
+});
+window.api.onUpdateChanged(() => fillUpdate());
 
 // ----------------------------------------------------------------------- start
 

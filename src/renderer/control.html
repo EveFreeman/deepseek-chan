@@ -13,6 +13,7 @@
   <button data-tab="connection">API 연결</button>
   <button data-tab="voice">음성</button>
   <button data-tab="character">일반</button>
+  <button data-tab="update" id="nav-update">업데이트</button>
 </nav>
 <main>
 
@@ -221,6 +222,20 @@
       <span class="row"><span id="g-status" class="note"></span><button type="submit">저장</button></span>
     </div>
   </form>
+</section>
+
+<section id="update" hidden>
+  <h1>업데이트</h1>
+  <div class="card form">
+    <p class="version">현재 버전 <strong id="u-version"></strong> <span id="u-commit" class="note"></span></p>
+    <div class="row">
+      <button type="button" id="u-check" class="ghost">업데이트 확인</button>
+      <button type="button" id="u-apply" disabled>다운로드하고 다시 시작</button>
+      <span id="u-status" class="note"></span>
+    </div>
+    <ul id="u-list" class="list"></ul>
+    <p class="note">GitHub에서 새 버전을 받아 앱을 다시 시작합니다. 설정, 키, 대화 기록은 그대로 남습니다. 음성 엔진이나 Electron이 바뀐 버전은 받은 뒤 설치 스크립트를 한 번 다시 실행해야 합니다. 앱은 켜질 때와 6시간마다 새 버전을 확인합니다.</p>
+  </div>
 </section>
 
 </main>

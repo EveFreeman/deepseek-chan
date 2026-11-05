@@ -56,6 +56,12 @@ contextBridge.exposeInMainWorld('api', {
   onTranscriptChanged: on('transcript:changed'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
 
+  // updates
+  updateInfo: () => ipcRenderer.invoke('update:info'),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  applyUpdate: () => ipcRenderer.invoke('update:apply'),
+  onUpdateChanged: on('update:changed'),
+
   // usage
   usage: () => ipcRenderer.invoke('usage:all'),
   clearUsage: () => ipcRenderer.invoke('usage:clear'),

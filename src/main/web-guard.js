@@ -108,6 +108,20 @@ function fetchBlockReason(value, allowed) {
   return null;
 }
 
+// True for an address the app must never fetch from itself: loopback, private and
+// link-local ranges, carrier NAT, and IPv6 equivalents including IPv4-mapped ones.
+// Checked on the resolved address, so a public name that points inside is caught too.
+function isPrivateAddress(ip) {
+  const v4 = /^(?:::ffff:)?(\d+)\.(\d+)\.(\d+)\.(\d+)$/i.exec(ip);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  const v6 = ip.toLowerCase();
+  return v6 === '::' || v6 === '::1' || /^f[cd]/.test(v6) || /^fe[89ab]/.test(v6) || /^ff/.test(v6);
+}
+
 const SECRET_SHAPE = /\b(sk|pk|ghp|gho|xox[abp])[-_][A-Za-z0-9_-]{12,}|\bAKIA[0-9A-Z]{12,}/;
 
 // Returns why the query may not be sent, or null when it is fine.
@@ -123,4 +137,4 @@ function urlsIn(text) {
   return found.map((url) => normalizeUrl(url.replace(/[.,;:!?]+$/, ''))).filter(Boolean);
 }
 
-module.exports = { clean, redact, cap, fence, normalizeUrl, fetchBlockReason, queryBlockReason, urlsIn, looksInjected };
+module.exports = { clean, redact, cap, fence, normalizeUrl, fetchBlockReason, queryBlockReason, urlsIn, looksInjected, isPrivateAddress, PRIVATE_HOST };

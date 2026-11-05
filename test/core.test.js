@@ -453,3 +453,46 @@ test('an update fast-forwards a git clone and never overwrites local edits', asy
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('the app never fetches from private or local addresses, however they are written', () => {
+  for (const ip of ['127.0.0.1', '10.1.2.3', '172.20.0.1', '192.168.0.10', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', '::ffff:127.0.0.1', 'fd12::1', 'fe80::1']) {
+    assert.strictEqual(guard.isPrivateAddress(ip), true, ip);
+  }
+  for (const ip of ['8.8.8.8', '172.32.0.1', '211.249.220.24', '2606:4700::1111']) assert.strictEqual(guard.isPrivateAddress(ip), false, ip);
+});
+
+test('a page read directly keeps its article text and drops menus and scripts', () => {
+  const { htmlToText } = require('../src/main/web-fetch');
+  const body = '본문 문장입니다. '.repeat(60);
+  const page = htmlToText(`<html><head><title>뉴스 &amp; 소식</title></head><body>
+    <nav>메뉴 홈 로그인</nav><script>alert(1)</script>
+    <article><h1>제목</h1><p>${body}</p><ul><li>하나</li><li>둘</li></ul></article>
+    <footer>저작권</footer></body></html>`);
+  assert.strictEqual(page.title, '뉴스 & 소식');
+  assert.ok(page.content.startsWith('제목'));
+  assert.ok(page.content.includes('- 하나') && page.content.includes('- 둘'));
+  assert.ok(!/메뉴|alert|저작권/.test(page.content));
+});
+
+test('Korean pages in EUC-KR are decoded, from the header or the meta tag', () => {
+  const { decode } = require('../src/main/web-fetch');
+  const hangul = Buffer.from([0xc7, 0xd1, 0xb1, 0xdb]);
+  assert.strictEqual(decode(hangul, 'text/html; charset=euc-kr'), '한글');
+  const page = Buffer.concat([Buffer.from('<meta charset="euc-kr"><p>'), hangul]);
+  assert.ok(decode(page, 'text/html').endsWith('한글'));
+});
+
+test('a long page is cut to its opening and the passages about the question', () => {
+  const { excerpt } = require('../src/main/search');
+  const filler = (n) => Array.from({ length: n }, (_, i) => `일반적인 이야기 ${i}번 문단입니다. 특별한 내용은 없습니다.`.padEnd(780, '.')).join('\n');
+  const text = ['서울 날씨 안내 페이지', filler(10), '내일 서울은 오후부터 비가 오고 기온은 12도입니다.', filler(10)].join('\n');
+  const cut = excerpt(text, '내일 서울 비 기온', 3000);
+  assert.ok(cut.length <= 3200);
+  assert.ok(cut.startsWith('서울 날씨 안내 페이지'));
+  assert.ok(cut.includes('오후부터 비가 오고'));
+  assert.ok(cut.includes('…(중략)…'));
+  // Nothing matching: the head and the end of the page.
+  const blind = excerpt(text, 'zzzz', 3000);
+  assert.ok(blind.startsWith('서울 날씨') && blind.endsWith(text.slice(-100)));
+  assert.strictEqual(excerpt('짧은 글', '무엇', 3000), '짧은 글');
+});

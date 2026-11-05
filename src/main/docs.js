@@ -42,24 +42,31 @@ function build(folder) {
   return { files: files.length, chunks: chunks.length };
 }
 
-const terms = (query) => [...new Set(query.toLowerCase().match(/[\p{L}\p{N}_]{2,}/gu) ?? [])];
+const terms = (query) => [...new Set(String(query ?? '').toLowerCase().match(/[\p{L}\p{N}_]{2,}/gu) ?? [])];
+
+// Occurrences of each word, capped so one repeated word cannot dominate, plus a bonus
+// for every different word found. `lower` is the text already lowercased.
+function score(lower, words) {
+  let total = 0;
+  let hits = 0;
+  for (const word of words) {
+    const count = lower.split(word).length - 1;
+    if (count) hits += 1;
+    total += Math.min(count, 5);
+  }
+  return total ? total + hits * 5 : 0;
+}
 
 function search(folder, query, limit = 5) {
   if (index.folder !== folder) build(folder);
   const words = terms(query);
   const scored = [];
   for (const chunk of index.chunks) {
-    let score = 0;
-    let hits = 0;
-    for (const word of words) {
-      const count = chunk.lower.split(word).length - 1;
-      if (count) hits += 1;
-      score += Math.min(count, 5);
-    }
-    if (score) scored.push({ chunk, score: score + hits * 5 });
+    const value = score(chunk.lower, words);
+    if (value) scored.push({ chunk, score: value });
   }
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit).map(({ chunk }) => ({ name: chunk.name, text: chunk.text }));
 }
 
-module.exports = { build, search };
+module.exports = { build, search, terms, score };

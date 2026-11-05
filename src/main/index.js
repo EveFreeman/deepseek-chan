@@ -626,13 +626,14 @@ async function sendChat(text, { force = null, retry = false, deep = false, overB
         ...(result.reasoning ? { reasoning_content: result.reasoning } : {}),
         tool_calls: result.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })),
       });
-      for (const call of result.toolCalls) {
-        sender?.send('chat:status', { web_fetch: '페이지 읽는 중…', docs_search: '문서 찾는 중…' }[call.name] ?? '검색 중…');
-        const before = session.billed;
-        const output = await search.runTool(session, call.name, call.arguments);
-        recordSearch(session.billed - before);
-        messages.push({ role: 'tool', tool_call_id: call.id, content: output });
-      }
+      // A round's calls run together; their answers go back in the order asked.
+      const calls = result.toolCalls;
+      const label = { web_fetch: '페이지 읽는 중…', docs_search: '문서 찾는 중…' }[calls[0].name] ?? '검색 중…';
+      sender?.send('chat:status', calls.length > 1 ? `${label.slice(0, -1)} (${calls.length}건)…` : label);
+      const before = session.billed;
+      const outputs = await Promise.all(calls.map((call) => search.runTool(session, call.name, call.arguments)));
+      recordSearch(session.billed - before);
+      calls.forEach((call, i) => messages.push({ role: 'tool', tool_call_id: call.id, content: outputs[i] }));
     }
     // Only the spoken reply is kept: web text must not linger in chat history.
     // Without bold marks too, or the model copies them from its own earlier replies.

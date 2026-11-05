@@ -2,6 +2,7 @@
 // stopped with the app or after an idle spell; a server that is already running is reused.
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { idleStopper } = require('./idle');
 
@@ -46,6 +47,13 @@ function detectDevice(choice, platform = process.platform) {
   return platform === 'darwin' && choice !== 'cpu' ? 'mps' : 'cpu';
 }
 
+// PyTorch takes every logical core by default. On a 16-core Intel laptop (performance and
+// efficiency cores mixed) 8 threads synthesized 10-20% faster than 16, and 4 slower.
+function cpuThreads(cores) {
+  const n = String(Math.max(1, Math.min(8, Math.floor(cores / 2))));
+  return { OMP_NUM_THREADS: n, MKL_NUM_THREADS: n };
+}
+
 // The server only reads its device from this file's `custom` section.
 function setDevice(dir, device) {
   const file = path.join(dir, CONFIG_FILE);
@@ -68,7 +76,7 @@ function launch({ dir, python, device: choice }) {
   const device = detectDevice(choice);
   setDevice(dir, device);
   // Hiding CUDA keeps PyTorch from waking a powered-down GPU just to probe it.
-  const env = device === 'cpu' ? { ...pythonEnv(python), CUDA_VISIBLE_DEVICES: '-1' } : pythonEnv(python);
+  const env = device === 'cpu' ? { ...pythonEnv(python), CUDA_VISIBLE_DEVICES: '-1', ...cpuThreads(os.cpus().length) } : pythonEnv(python);
   log = '';
   child = spawn(python, ['api_v2.py', '-a', HOST, '-p', String(PORT), '-c', CONFIG_FILE], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env });
   const collect = (data) => { log = (log + data).slice(-2000); };
@@ -149,4 +157,4 @@ function stop() {
   child = null;
 }
 
-module.exports = { speak, ensureServer, warm, stop, setIdle: idle.setMinutes, pythonEnv, detectDevice };
+module.exports = { speak, ensureServer, warm, stop, setIdle: idle.setMinutes, pythonEnv, detectDevice, cpuThreads };

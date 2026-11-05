@@ -356,6 +356,24 @@ const GESTURES = {
 const HAND_MESHES = ['Movement1', 'Movement2', 'Movement3'];
 const HELD = new Set(['foxtail']);
 const PROPS = { glasses: 'key11', monocle: 'key12', bowl: 'key10' };
+// Worn on the same face, so only one at a time.
+const EYEWEAR = [PROPS.glasses, PROPS.monocle];
+
+// Props after putting one on: new eyewear replaces the other kind.
+function addProp(props, id) {
+  const out = EYEWEAR.includes(id) ? Object.fromEntries(Object.entries(props).filter(([k]) => !EYEWEAR.includes(k))) : { ...props };
+  out[id] = 1;
+  return out;
+}
+
+// Face values with the props on top. Eyewear held as a prop (the monocle while she
+// searches) wins over eyewear that is only part of a sentence's expression.
+function withProps(face, props) {
+  const worn = EYEWEAR.find((id) => props[id]);
+  const out = { ...face, ...props };
+  if (worn) for (const id of EYEWEAR) if (id !== worn) delete out[id];
+  return out;
+}
 
 // What the sentence itself suggests. `emotion` applies only when the model sent
 // no tag; `clip` and `prop` are added on top either way.
@@ -476,7 +494,7 @@ function pickPreset(emotion) {
 
 const MOTION_API = {
   CLIPS, PRESETS, GESTURES, HAND_MESHES, HELD, PROPS, EMOTIONS, ACTIONS, KNOWN_TAGS, EMOTION_LABELS, CLIP_LABELS, KEYWORDS,
-  resolveCue, pickPreset, pickIdleAct, stripTags, IDLE_ACTS,
+  resolveCue, pickPreset, pickIdleAct, stripTags, IDLE_ACTS, addProp, withProps,
 };
 if (typeof module !== 'undefined') module.exports = MOTION_API;
 else window.Motions = MOTION_API;

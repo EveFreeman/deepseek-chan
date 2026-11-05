@@ -16,6 +16,8 @@ const ARM_FADE = 0.14;
 const MIN_GESTURE_SECONDS = 1.6;
 const ARM_MESH_MOVE = 0.02;
 const LISTEN_POSE = { LeanInput: -15, ParamAngleY: -3, ParamAngleZ: 3 };
+// The SD body is mostly head, so a full-size lean pushes her face at the viewer.
+const SD_LEAN = 0.3;
 const EYELIDS = ['ParamEyeLOpen', 'ParamEyeROpen'];
 const HEAD_INPUTS = { ParamAngleX: 'AngleX', ParamAngleY: 'AngleY', ParamAngleZ: 'AngleZ' };
 
@@ -141,7 +143,7 @@ class Character {
       this.props = {};
       this.releaseArms();
     } else if (Motions.HELD.has(name)) this.gesture(name, Infinity);
-    else if (Motions.PROPS[name]) this.props = { ...this.props, [Motions.PROPS[name]]: 1 };
+    else if (Motions.PROPS[name]) this.props = Motions.addProp(this.props, Motions.PROPS[name]);
   }
 
   gesture(name, seconds) {
@@ -288,7 +290,7 @@ class Character {
     // A held object keeps its arm, so a gesture for that arm gives way.
     if (hand && !this.holdsWith(Motions.GESTURES[hand].side)) this.gesture(hand, seconds);
     if (preset.hold) this.gesture(preset.hold, Infinity);
-    if (preset.prop) this.props = { ...this.props, [preset.prop]: 1 };
+    if (preset.prop) this.props = Motions.addProp(this.props, preset.prop);
     cue.props.forEach((name) => this.setProp(name));
     for (const [at, clip, strength] of preset.beats ?? []) this.play(clip, at * seconds, strength * cue.level);
     cue.clips.forEach((clip, i) => this.play(clip, (0.08 + i * 0.25) * seconds, cue.level));
@@ -334,7 +336,7 @@ class Character {
     }
     for (const side of ['left', 'right']) if (this.clock >= (this.slots[side]?.until ?? Infinity)) this.releaseArm(side);
     this.updateArms();
-    const next = { ...this.face, ...this.props, Clothes2: this.target.Clothes2 };
+    const next = { ...Motions.withProps(this.face, this.props), Clothes2: this.target.Clothes2 };
     this.target = next;
 
     const rate = 1 - Math.exp(-dt * 9);
@@ -388,6 +390,7 @@ class Character {
       add('ParamBodyAngleZ', this.talk * 2.5 * Math.sin(t * 1.1));
       add('ParamBodyAngleY', this.talk * 2.5 * this.mouth);
     }
+    if (this.mode === 'sd' && adds.LeanInput) adds.LeanInput *= SD_LEAN;
     for (const [id, input] of Object.entries(HEAD_INPUTS)) if (adds[id]) adds[input] = adds[id];
     return adds;
   }

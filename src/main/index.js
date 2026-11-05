@@ -11,6 +11,7 @@ const llm = require('./llm');
 const tts = require('./tts');
 const gptsovits = require('./gptsovits');
 const motions = require('../shared/motions');
+const { unemphasize } = require('../shared/speech-parser');
 const search = require('./search');
 const attachments = require('./attachments');
 const transcript = require('./transcript');
@@ -575,6 +576,8 @@ async function sendChat(text, { force = null, retry = false, deep = false, overB
       }
     }
     // Only the spoken reply is kept: web text must not linger in chat history.
+    // Without bold marks too, or the model copies them from its own earlier replies.
+    spoken = unemphasize(spoken);
     history.push({ role: 'assistant', content: spoken });
     saveHistory();
     logEntry({

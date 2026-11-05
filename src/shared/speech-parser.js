@@ -6,6 +6,11 @@ const knownTags = (typeof module !== 'undefined' ? require('./motions') : window
 const MAX_TAG = 24;
 const SENTENCE_END = /[.!?。！？…~\n]+["'”’)）]*\s*/;
 const SENTENCE_TAIL = new RegExp(`${SENTENCE_END.source}$`);
+// The voice waits for its whole first piece to be synthesized, which on a CPU takes
+// longer than saying it. So until something has been said, a comma ends a piece too,
+// once a few words precede it; not one between digits, as in 1,000.
+const CLAUSE_END = /(?<!\d)[,，、](?!\d)\s*/g;
+const MIN_CLAUSE = 6;
 
 class SpeechParser {
   constructor(onSegment) {
@@ -48,10 +53,18 @@ class SpeechParser {
     }
   }
 
+  nextCut() {
+    const end = SENTENCE_END.exec(this.text);
+    if (this.spoke) return end;
+    CLAUSE_END.lastIndex = MIN_CLAUSE;
+    const clause = CLAUSE_END.exec(this.text);
+    return clause && (!end || clause.index < end.index) ? clause : end;
+  }
+
   addText(text) {
     this.text += text;
     for (;;) {
-      const match = SENTENCE_END.exec(this.text);
+      const match = this.nextCut();
       // Keep a trailing end mark buffered: more punctuation may follow.
       if (!match || match.index + match[0].length === this.text.length) return;
       const cut = match.index + match[0].length;
@@ -61,8 +74,9 @@ class SpeechParser {
   }
 
   emit(raw) {
-    const text = raw.trimStart();
+    const text = unemphasize(raw).trimStart();
     if (!text && !this.tags.length) return;
+    if (text.trim()) this.spoke = true;
     this.onSegment({ text, tags: this.tags, level: this.level });
     this.tags = [];
     this.level = undefined;
@@ -76,6 +90,10 @@ class SpeechParser {
   }
 }
 
+// Bold and underline marks the model sometimes adds anyway; the bubble is plain text.
+// Each mark is removed on its own, so one cut by a sentence end still goes.
+const unemphasize = (text) => text.replace(/\*\*|__/g, '');
+
 // What the voice should read: no markdown, code, links or emoji.
 function speakable(text) {
   return text
@@ -88,5 +106,5 @@ function speakable(text) {
     .trim();
 }
 
-if (typeof module !== 'undefined') module.exports = { SpeechParser, speakable };
-else Object.assign(window, { SpeechParser, speakable });
+if (typeof module !== 'undefined') module.exports = { SpeechParser, speakable, unemphasize };
+else Object.assign(window, { SpeechParser, speakable, unemphasize });

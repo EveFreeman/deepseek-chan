@@ -361,3 +361,37 @@ test('voice synthesis uses the GPU only on a Mac, and never CUDA', () => {
   assert.strictEqual(detectDevice('auto', 'win32'), 'cpu');
   assert.strictEqual(detectDevice('cpu', 'win32'), 'cpu');
 });
+
+test('glasses and monocle are never worn together', () => {
+  const { addProp, withProps, PROPS } = motions;
+  const { glasses, monocle, bowl } = PROPS;
+  assert.deepStrictEqual(addProp({ [monocle]: 1, [bowl]: 1 }, glasses), { [bowl]: 1, [glasses]: 1 });
+  // Searching puts the monocle on; a sentence whose face has glasses keeps the monocle.
+  const shown = withProps({ [glasses]: 1, ParamMouthForm: 1 }, { [monocle]: 1 });
+  assert.strictEqual(shown[monocle], 1);
+  assert.strictEqual(shown[glasses], undefined);
+  assert.strictEqual(shown.ParamMouthForm, 1);
+  assert.deepStrictEqual(withProps({ [glasses]: 1 }, {}), { [glasses]: 1 });
+});
+
+test('bold marks never reach the bubble, even when a sentence end splits them', () => {
+  const out = parse(['[explain] 이건 **정말', ' 중요해요.** 그리고 __밑줄__도요.']);
+  assert.deepStrictEqual(out.map((s) => s.text), ['이건 정말 중요해요.', '그리고 밑줄도요.']);
+});
+
+test('a reply starts speaking after its first clause, and only the first is cut at a comma', () => {
+  const out = parse(['[explain] 그 파일은 설정 폴더 안에 있으니까', ', 열어서 고치면 돼요. 다음 문장은, 쉼표에서 안 잘려요.']);
+  assert.deepStrictEqual(out.map((s) => s.text), ['그 파일은 설정 폴더 안에 있으니까, ', '열어서 고치면 돼요. ', '다음 문장은, 쉼표에서 안 잘려요.']);
+  assert.deepStrictEqual(out[0].tags, ['explain']);
+  // Too short before the comma, or a comma inside a number: the sentence stays whole.
+  assert.deepStrictEqual(parse(['네, 알겠어요!']).map((s) => s.text), ['네, 알겠어요!']);
+  assert.deepStrictEqual(parse(['가격은 모두 12,000원이에요.']).map((s) => s.text), ['가격은 모두 12,000원이에요.']);
+});
+
+test('voice synthesis on a CPU uses half the cores, at most 8 threads', () => {
+  const { cpuThreads } = require('../src/main/gptsovits');
+  assert.deepStrictEqual(cpuThreads(16), { OMP_NUM_THREADS: '8', MKL_NUM_THREADS: '8' });
+  assert.strictEqual(cpuThreads(32).OMP_NUM_THREADS, '8');
+  assert.strictEqual(cpuThreads(4).OMP_NUM_THREADS, '2');
+  assert.strictEqual(cpuThreads(1).OMP_NUM_THREADS, '1');
+});

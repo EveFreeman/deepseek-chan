@@ -29,9 +29,12 @@ const MODEL_FILE = '大肥鱼.model3.json';
 const RENDERER = path.join(__dirname, '../renderer');
 
 // Window size per character mode, at scale 1. Top space is kept for the bubble.
-const SIZES = { full: { width: 400, height: 790 }, sd: { width: 340, height: 460 } };
+const SIZES = { full: { width: 400, height: 790 }, bust: { width: 400, height: 600 }, sd: { width: 340, height: 460 } };
+const MODE_LABELS = [['full', '전신'], ['bust', '상반신'], ['sd', 'SD']];
 const TOPMOST_CHECK_MS = 2000;
 const SCALES = [0.7, 0.85, 1, 1.25, 1.5];
+const SCALE_MIN = 0.5;
+const SCALE_MAX = 2;
 
 // The app stays self-contained, so settings and history live in the project folder.
 // The test hook runs against a throwaway profile instead.
@@ -47,6 +50,7 @@ let controlWin = null;
 let tray = null;
 let abort = null;
 let muted = false;
+let dragGrip = null;
 let history = [];
 let cursorTimer = null;
 
@@ -102,10 +106,17 @@ function registerModelProtocol() {
 
 // -------------------------------------------------------------------- windows
 
-function charSize() {
-  const { mode, scale } = store.load().character;
-  const size = SIZES[mode] ?? SIZES.full;
+function charSize(scale = store.load().character.scale) {
+  const size = SIZES[store.load().character.mode] ?? SIZES.full;
   return { width: Math.round(size.width * scale), height: Math.round(size.height * scale) };
+}
+
+// Any size between the limits, but never taller than the screen she is on.
+function clampScale(scale) {
+  const size = SIZES[store.load().character.mode] ?? SIZES.full;
+  const area = charWin ? screen.getDisplayMatching(charWin.getBounds()).workArea : screen.getPrimaryDisplay().workArea;
+  const max = Math.min(SCALE_MAX, area.height / size.height);
+  return Math.round(Math.min(Math.max(scale, SCALE_MIN), max) * 1000) / 1000;
 }
 
 function clampToDisplay(bounds) {
@@ -176,15 +187,25 @@ function saveBounds() {
   store.update({ character: { bounds: { cx: b.x + b.width / 2, bottom: b.y + b.height } } });
 }
 
-function resizeChar() {
+// Bottom centre that size changes keep in place. Held between resizes, because
+// reading the bounds back after each one drifts by a pixel under display scaling.
+let resizeAnchor = null;
+
+function resizeChar(scale) {
   if (!charWin) return;
   const old = charWin.getBounds();
-  const size = charSize();
+  // Anywhere else than the last resize left her means she was moved since.
+  const placed = resizeAnchor?.placed;
+  if (!placed || ['x', 'y', 'width', 'height'].some((k) => Math.abs(old[k] - placed[k]) > 2)) {
+    resizeAnchor = { cx: old.x + old.width / 2, bottom: old.y + old.height };
+  }
+  const size = charSize(scale);
   charWin.setBounds(clampToDisplay({
     ...size,
-    x: Math.round(old.x + old.width / 2 - size.width / 2),
-    y: old.y + old.height - size.height,
+    x: Math.round(resizeAnchor.cx - size.width / 2),
+    y: Math.round(resizeAnchor.bottom - size.height),
   }));
+  resizeAnchor.placed = charWin.getBounds();
 }
 
 function startCursorFeed() {
@@ -225,24 +246,42 @@ function openControl(tab = 'dashboard') {
 // ----------------------------------------------------------------- menu & tray
 
 function setMode(mode) {
-  store.update({ character: { mode } });
+  if (!SIZES[mode]) return;
+  store.update({ character: mode === 'sd' ? { mode } : { mode, lastMode: mode } });
+  // A mode with a taller window may no longer fit the screen at the same size.
+  const { scale } = store.load().character;
+  if (clampScale(scale) !== scale) store.update({ character: { scale: clampScale(scale) } });
   resizeChar();
+  charWin?.webContents.send('char:scale', store.load().character.scale);
   charWin?.webContents.send('char:mode', mode);
   refreshTray();
 }
 
-const toggleMode = () => setMode(store.load().character.mode === 'sd' ? 'full' : 'sd');
+// The SD shortcut goes back to whichever full-size mode she was in before.
+function toggleMode() {
+  const c = store.load().character;
+  setMode(c.mode === 'sd' ? (c.lastMode === 'bust' ? 'bust' : 'full') : 'sd');
+}
 
-function setScale(scale) {
-  store.update({ character: { scale } });
-  resizeChar();
-  charWin?.webContents.send('char:mode', store.load().character.mode);
+// While the frame is being dragged the size only goes to the window; it is saved at the end.
+function setScale(scale, save = true) {
+  const value = clampScale(scale);
+  if (save) store.update({ character: { scale: value } });
+  resizeChar(value);
+  charWin?.webContents.send('char:scale', value);
+  return value;
 }
 
 function setMuted(value) {
   muted = value;
   charWin?.webContents.send('char:muted', muted);
+  refreshTray();
 }
+
+const modeMenu = (c, accelerator) => MODE_LABELS.map(([mode, label]) => ({
+  label, type: 'radio', checked: c.character.mode === mode, click: () => setMode(mode),
+  ...(mode === 'sd' && accelerator ? { accelerator, registerAccelerator: false } : {}),
+}));
 
 function toggleVisible() {
   if (!charWin) return;
@@ -273,8 +312,8 @@ function charMenuTemplate() {
   return [
     { label: '말 걸기', accelerator: input || undefined, registerAccelerator: false, click: openInput },
     { type: 'separator' },
-    { label: 'SD 모드', type: 'checkbox', checked: c.character.mode === 'sd', accelerator: sd || undefined, registerAccelerator: false, click: toggleMode },
-    { label: '크기', submenu: SCALES.map((s) => ({ label: `${Math.round(s * 100)}%`, type: 'radio', checked: c.character.scale === s, click: () => setScale(s) })) },
+    { label: '모드', submenu: modeMenu(c, sd) },
+    { label: `크기 (${Math.round(c.character.scale * 100)}%)`, submenu: SCALES.map((s) => ({ label: `${Math.round(s * 100)}%`, type: 'radio', checked: Math.abs(c.character.scale - s) < 0.005, click: () => setScale(s) })) },
     { label: '표정', submenu: items(EXPRESSIONS) },
     { label: '동작', submenu: items(ACTIONS) },
     { label: '소품', submenu: items(PROPS) },
@@ -307,7 +346,8 @@ function refreshTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: charWin?.isVisible() ? '숨기기' : '보이기', click: toggleVisible },
     { label: '말 걸기', click: openInput },
-    { label: 'SD 모드', type: 'checkbox', checked: c.character.mode === 'sd', click: toggleMode },
+    { label: '모드', submenu: modeMenu(c) },
+    { label: '음소거', type: 'checkbox', checked: muted, click: () => setMuted(!muted) },
     { type: 'separator' },
     { label: '대화 기록', click: () => openControl('log') },
     { label: '사용량 대시보드', click: () => openControl('dashboard') },
@@ -1002,6 +1042,7 @@ function registerIpc() {
   ipcMain.handle('app:action', (_e, name, arg) => {
     if (name === 'mute') setMuted(!muted);
     if (name === 'sd') toggleMode();
+    if (name === 'bust') setMode(store.load().character.mode === 'bust' ? 'full' : 'bust');
     if (name === 'hide') toggleVisible();
     if (name === 'dashboard') openControl('dashboard');
     if (name === 'settings') openControl('connection');
@@ -1015,11 +1056,27 @@ function registerIpc() {
   ipcMain.handle('usage:all', () => usage.all());
   ipcMain.handle('usage:clear', () => { usage.clear(); broadcast('usage:changed'); });
 
-  ipcMain.on('win:moveBy', (_e, dx, dy) => {
+  // The window follows the cursor at the offset it was grabbed at. setPosition is
+  // not used: on Windows with display scaling it rounds the size up a little on
+  // every call, so a long drag made her grow.
+  ipcMain.on('win:dragStart', () => {
     if (!charWin) return;
-    const [x, y] = charWin.getPosition();
-    charWin.setPosition(Math.round(x + dx), Math.round(y + dy));
+    const p = screen.getCursorScreenPoint();
+    const b = charWin.getBounds();
+    dragGrip = { dx: p.x - b.x, dy: p.y - b.y, ...charSize() };
+    resizeAnchor = null;
   });
+  ipcMain.on('win:dragMove', () => {
+    if (!charWin || !dragGrip) return;
+    const p = screen.getCursorScreenPoint();
+    charWin.setBounds({ x: p.x - dragGrip.dx, y: p.y - dragGrip.dy, width: dragGrip.width, height: dragGrip.height });
+  });
+  ipcMain.on('win:dragEnd', () => {
+    if (!dragGrip) return;
+    dragGrip = null;
+    saveBounds();
+  });
+  ipcMain.handle('win:scale', (_e, scale, save) => setScale(scale, save));
   ipcMain.on('win:clickThrough', (_e, ignore) => {
     charWin?.setIgnoreMouseEvents(ignore, { forward: true });
   });

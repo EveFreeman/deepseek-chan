@@ -8,6 +8,19 @@
 </head>
 <body>
 <canvas id="stage"></canvas>
+<div id="frame" hidden>
+  <div class="grip edge" data-dir="n"></div><div class="grip edge" data-dir="s"></div>
+  <div class="grip edge" data-dir="e"></div><div class="grip edge" data-dir="w"></div>
+  <div class="grip corner" data-dir="nw"></div><div class="grip corner" data-dir="ne"></div>
+  <div class="grip corner" data-dir="sw"></div><div class="grip corner" data-dir="se"></div>
+</div>
+<div id="quick" hidden>
+  <button type="button" data-act="move" title="끌어서 옮기기" aria-label="옮기기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></button>
+  <button type="button" data-act="dashboard" title="사용량 대시보드" aria-label="사용량 대시보드"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6 20v-6M11 20V8M16 20V4"/></svg></button>
+  <button type="button" data-act="log" title="대화 기록" aria-label="대화 기록"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H10l-6 4zM8 9h8M8 12h5"/></svg></button>
+  <button type="button" data-act="mute" title="음소거" aria-label="음소거" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="sound" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/><path class="cross" d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
+  <button type="button" data-act="settings" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></button>
+</div>
 <div id="bubble" hidden><div id="bubble-text"></div><div id="bubble-foot" hidden></div></div>
 <div id="tray" hidden></div>
 <div id="drop-hint" hidden>놓으면 첨부돼요</div>

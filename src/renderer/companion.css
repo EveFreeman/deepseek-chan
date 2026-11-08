@@ -6,6 +6,7 @@
   --command: #c2541a;
   --command-bg: #fff0e3;
   --command-text: #7a3208;
+  --frame-line: rgba(42, 120, 214, .75);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -16,6 +17,7 @@
     --command: #e0752f;
     --command-bg: #3b2415;
     --command-text: #ffd9bd;
+    --frame-line: rgba(120, 170, 255, .8);
   }
 }
 * { box-sizing: border-box; }
@@ -26,6 +28,55 @@ html, body {
   user-select: none;
 }
 #stage { position: fixed; inset: 0; width: 100%; height: 100%; }
+/* The window's bottom edge cuts her at the waist; a short fade softens the cut. */
+body[data-mode="bust"] #stage { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent); }
+
+/* Shown while the cursor is on her: a frame to resize her by and a few quick buttons. */
+#frame {
+  position: fixed; pointer-events: none;
+  border: 1.5px dashed var(--frame-line); border-radius: 12px;
+  animation: fade .14s ease-out;
+}
+#frame[hidden], #quick[hidden] { display: none; }
+#frame.active { border-style: solid; }
+.grip { position: absolute; pointer-events: auto; }
+.grip.edge[data-dir="n"], .grip.edge[data-dir="s"] { left: 14px; right: 14px; height: 12px; cursor: ns-resize; }
+.grip.edge[data-dir="e"], .grip.edge[data-dir="w"] { top: 14px; bottom: 14px; width: 12px; cursor: ew-resize; }
+.grip[data-dir="n"] { top: -7px; }
+.grip[data-dir="s"] { bottom: -7px; }
+.grip[data-dir="e"] { right: -7px; }
+.grip[data-dir="w"] { left: -7px; }
+.grip.corner { width: 18px; height: 18px; }
+.grip.corner::after {
+  content: ''; position: absolute; inset: 4px; border-radius: 50%;
+  background: var(--bubble-bg); border: 2px solid var(--accent);
+}
+.grip[data-dir="nw"] { top: -9px; left: -9px; cursor: nwse-resize; }
+.grip[data-dir="se"] { bottom: -9px; right: -9px; cursor: nwse-resize; }
+.grip[data-dir="ne"] { top: -9px; right: -9px; cursor: nesw-resize; }
+.grip[data-dir="sw"] { bottom: -9px; left: -9px; cursor: nesw-resize; }
+
+#quick {
+  position: fixed; display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  background: var(--bubble-bg); border: 1.5px solid var(--bubble-line); border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .18);
+  animation: fade .14s ease-out;
+}
+#quick button {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--bubble-text); cursor: pointer;
+}
+#quick button:hover { background: var(--accent); color: #fff; }
+#quick button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#quick button[data-act="move"] { cursor: move; }
+#quick svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#quick .cross { display: none; }
+#quick button[aria-pressed="true"] { color: #e34948; }
+#quick button[aria-pressed="true"]:hover { color: #fff; background: #e34948; }
+#quick button[aria-pressed="true"] .sound { display: none; }
+#quick button[aria-pressed="true"] .cross { display: inline; }
+@keyframes fade { from { opacity: 0; } }
 
 #bubble {
   position: fixed; top: 8px; left: 12px; right: 12px;

@@ -24,6 +24,8 @@ const HEAD_INPUTS = { ParamAngleX: 'AngleX', ParamAngleY: 'AngleY', ParamAngleZ:
 // Screen area each body type occupies, as fractions of the model's canvas.
 const FRAMES = {
   full: { x: 0, y: 0, w: 1, h: 1 },
+  // Head to waist; the window's bottom edge cuts her off below that.
+  bust: { x: 0.15, y: 0.06, w: 0.7, h: 0.39 },
   sd: { x: 0.32, y: 0.08, w: 0.36, h: 0.27 },
 };
 
@@ -71,6 +73,7 @@ class Character {
     this.shift = { x: 0, y: 0 };
     this.mouth = 0;
     this.placement = null;
+    this.snap = false; // true while the user resizes her, so she follows the frame without easing
   }
 
   async load(url) {
@@ -108,7 +111,7 @@ class Character {
     window.addEventListener('resize', () => {
       const box = this.fitParent ? this.canvas.parentElement.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
       this.app.renderer.resize(box.width, box.height);
-      this.layout(false);
+      this.layout(this.snap);
     });
   }
 
@@ -407,6 +410,31 @@ class Character {
       core.setParameterValueById('ParamMouthOpenY', this.mouth);
       core.setParameterValueById('JawOpen', this.mouth * 0.6);
     }
+  }
+
+  // The box around everything drawn this frame, in CSS px, or null when nothing is.
+  bounds() {
+    const gl = this.app.renderer.gl;
+    const ratio = this.app.renderer.resolution;
+    const w = gl.drawingBufferWidth;
+    const h = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let left = w, right = -1, top = h, bottom = -1;
+    for (let y = 0; y < h; y += 2) {
+      const row = y * w * 4;
+      for (let x = 0; x < w; x += 2) {
+        if (pixels[row + x * 4 + 3] <= 24) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+    if (right < 0) return null;
+    // GL rows run bottom to top.
+    return { x: left / ratio, y: (h - bottom - 1) / ratio, w: (right - left + 2) / ratio, h: (bottom - top + 2) / ratio };
   }
 
   // True when the pixel under (x, y) in CSS px belongs to the character.

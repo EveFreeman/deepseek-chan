@@ -68,7 +68,11 @@ contextBridge.exposeInMainWorld('api', {
   onUsageChanged: on('usage:changed'),
 
   // floating window
-  moveBy: (dx, dy) => ipcRenderer.send('win:moveBy', dx, dy),
+  dragStart: () => ipcRenderer.send('win:dragStart'),
+  dragMove: () => ipcRenderer.send('win:dragMove'),
+  dragEnd: () => ipcRenderer.send('win:dragEnd'),
+  setScale: (scale, save) => ipcRenderer.invoke('win:scale', scale, save),
+  onScale: on('char:scale'),
   setClickThrough: (ignore) => ipcRenderer.send('win:clickThrough', ignore),
   contextMenu: () => ipcRenderer.send('win:menu'),
   focusInput: () => ipcRenderer.send('win:focus'),

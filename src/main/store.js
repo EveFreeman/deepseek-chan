@@ -99,7 +99,7 @@ function defaultConfig() {
       gptsovits: { dir: null, python: null, refAudio: null, refText: DEFAULT_REF_TEXT, speed: 1, device: 'auto' },
       openai: { baseUrl: 'https://api.openai.com/v1', model: '', voice: 'alloy', keyEnc: null, pricePerMChars: 0 },
     },
-    character: { mode: 'full', scale: 1, modelDir: null, alwaysOnTop: true, bubbleSeconds: 8, bounds: null },
+    character: { mode: 'full', lastMode: 'full', scale: 1, modelDir: null, alwaysOnTop: true, bubbleSeconds: 8, bounds: null },
     shortcuts: {
       input: 'CommandOrControl+Shift+Space',
       toggle: 'CommandOrControl+Alt+H',

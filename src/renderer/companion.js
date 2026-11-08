@@ -864,6 +864,7 @@ const COMMAND_RUNNERS = {
   동작: (arg) => (Motions.CLIPS[arg] ? character.play(arg) : say('목록에서 동작을 골라 주세요.')),
   음소거: async () => say((await window.api.appAction('mute')).muted ? '음소거했어요.' : '음소거를 풀었어요.'),
   SD: () => window.api.appAction('sd'),
+  상반신: () => window.api.appAction('bust'),
   기록: () => window.api.appAction('log'),
   대시보드: () => window.api.appAction('dashboard'),
   설정: () => window.api.appAction('settings'),
@@ -898,42 +899,177 @@ function setInteractive(on) {
   window.api.setClickThrough(!on);
 }
 
-const overUi = (target) => target?.closest?.('#bubble, #input-bar, #palette, #tray, #confirm');
+const overUi = (target) => target?.closest?.('#bubble, #input-bar, #palette, #tray, #confirm, #quick, .grip');
 
 // Driven by the main process's cursor feed rather than forwarded mouse events,
 // which do not reliably reach an unfocused transparent window.
 function updateHit(x, y) {
-  if (drag || !character?.model) return;
+  if (drag || resize || !character?.model) return;
   const inside = x >= 0 && y >= 0 && x < window.innerWidth && y < window.innerHeight;
-  const over = inside && (!!overUi(document.elementFromPoint(x, y)) || character.hit(x, y));
+  const onCharacter = inside && character.hit(x, y);
+  const over = inside && (!!overUi(document.elementFromPoint(x, y)) || onCharacter);
   setInteractive(over);
+  updateHover(x, y, onCharacter);
   if (over) noteActivity();
 }
 
-canvas.addEventListener('mousedown', (e) => {
+// The main process moves the window with the cursor, at the offset it was grabbed at.
+function startDrag(e, fromMenu = false) {
   if (e.button !== 0) return;
-  drag = { x: e.screenX, y: e.screenY, moved: false };
-});
+  drag = { x: e.screenX, y: e.screenY, moved: false, fromMenu };
+  window.api.dragStart();
+}
+
+canvas.addEventListener('mousedown', (e) => startDrag(e));
 
 window.addEventListener('mousemove', (e) => {
+  if (resize) return resizeTo(e);
   if (!drag) return;
-  const dx = e.screenX - drag.x;
-  const dy = e.screenY - drag.y;
-  if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+  if (!drag.moved && Math.hypot(e.screenX - drag.x, e.screenY - drag.y) < DRAG_THRESHOLD) return;
   drag.moved = true;
-  drag.x = e.screenX;
-  drag.y = e.screenY;
-  window.api.moveBy(dx, dy);
+  window.api.dragMove();
 });
+
+// --------------------------------------------- hover frame and quick menu
+
+const frameEl = document.getElementById('frame');
+const quickEl = document.getElementById('quick');
+const muteButton = quickEl.querySelector('[data-act="mute"]');
+const HOVER_PAD = 6; // frame distance from her outline
+const HOVER_LINGER_MS = 500; // how long the frame stays after the cursor leaves
+const hover = { on: false, box: null, leftAt: 0, measureTimer: null };
+let resize = null;
+
+function measureHover() {
+  hover.box = character.bounds() ?? hover.box;
+  if (hover.box) placeHover();
+}
+
+// Frame around her outline; buttons beside it, or inside the window's edge when there is no room.
+function placeHover() {
+  const b = hover.box;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const left = Math.max(9, b.x - HOVER_PAD);
+  const top = Math.max(9, b.y - HOVER_PAD);
+  const right = Math.min(W - 9, b.x + b.w + HOVER_PAD);
+  const bottom = Math.min(H - 9, b.y + b.h + HOVER_PAD);
+  Object.assign(frameEl.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
+  const qw = quickEl.offsetWidth || 42;
+  const qh = quickEl.offsetHeight || 180;
+  const qx = right + 6 + qw <= W - 2 ? right + 6 : W - qw - 4;
+  const qy = Math.min(Math.max(4, top + 18), H - qh - 4);
+  Object.assign(quickEl.style, { left: `${qx}px`, top: `${qy}px` });
+}
+
+function showHover(on) {
+  if (on === hover.on) return;
+  hover.on = on;
+  frameEl.hidden = !on;
+  quickEl.hidden = !on;
+  if (on) measureHover();
+}
+
+function updateHover(x, y, onCharacter) {
+  if (onCharacter && !hover.on) showHover(true);
+  if (!hover.on) return;
+  const near = (r, pad) => x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+  const keep = onCharacter || near(frameEl.getBoundingClientRect(), 10) || near(quickEl.getBoundingClientRect(), 10);
+  if (keep) hover.leftAt = 0;
+  else if (!hover.leftAt) hover.leftAt = performance.now();
+  else if (performance.now() - hover.leftAt > HOVER_LINGER_MS) showHover(false);
+}
+
+// Measured again once she has settled into a new size or mode.
+function remeasureSoon(ms = 700) {
+  clearTimeout(hover.measureTimer);
+  hover.measureTimer = setTimeout(() => { if (hover.on && !resize) measureHover(); }, ms);
+}
+
+// Sizes scale about the window's bottom centre, which stays put, so a grip
+// follows the cursor when the scale is the cursor's distance from that point
+// over the grip's distance when it was grabbed.
+frameEl.addEventListener('mousedown', (e) => {
+  const dir = e.target.dataset?.dir;
+  if (!dir || e.button !== 0 || !hover.box) return;
+  e.preventDefault();
+  const anchor = { x: window.screenX + window.innerWidth / 2, y: window.screenY + window.innerHeight };
+  resize = { dir, anchor, grab: { x: e.screenX, y: e.screenY }, scale: config.character.scale, h: hover.box.h, want: null, busy: false };
+  character.snap = true;
+  frameEl.classList.add('active');
+});
+
+function resizeTo(e) {
+  const { dir, anchor, grab, h } = resize;
+  const ratios = [];
+  if (/[ew]/.test(dir) && Math.abs(grab.x - anchor.x) > 20) ratios.push((e.screenX - anchor.x) / (grab.x - anchor.x));
+  if (dir.includes('n') && anchor.y - grab.y > 40) ratios.push((anchor.y - e.screenY) / (anchor.y - grab.y));
+  if (dir === 's') ratios.push((h + e.screenY - grab.y) / h);
+  if (!ratios.length) return;
+  const ratio = ratios.reduce((a, b) => (Math.abs(b - 1) > Math.abs(a - 1) ? b : a));
+  resize.want = resize.scale * Math.max(0.1, ratio);
+  sendScale();
+}
+
+// One resize in flight at a time; the newest wanted size goes next.
+async function sendScale() {
+  if (resize.busy || resize.want === null) return;
+  const want = resize.want;
+  resize.want = null;
+  resize.busy = true;
+  await window.api.setScale(want, false);
+  if (!resize) return;
+  resize.busy = false;
+  sendScale();
+}
+
+async function endResize() {
+  const { scale } = config.character;
+  resize = null;
+  frameEl.classList.remove('active');
+  await window.api.setScale(scale, true);
+  character.snap = false;
+  measureHover();
+}
+
+window.api.onScale((scale) => {
+  const k = scale / config.character.scale;
+  config.character.scale = scale;
+  applyMetrics();
+  character.layout(character.snap);
+  if (hover.on && hover.box) {
+    hover.box = { x: hover.box.x * k, y: hover.box.y * k, w: hover.box.w * k, h: hover.box.h * k };
+    placeHover();
+    if (!resize) remeasureSoon();
+  }
+});
+
+quickEl.addEventListener('mousedown', (e) => {
+  if (e.target.closest('[data-act="move"]')) startDrag(e, true);
+});
+
+quickEl.addEventListener('click', async (e) => {
+  const act = e.target.closest('button')?.dataset.act;
+  if (!act || act === 'move') return;
+  const state = await window.api.appAction(act);
+  if (act === 'mute') setMuteButton(state.muted);
+});
+
+function setMuteButton(muted) {
+  muteButton.setAttribute('aria-pressed', String(muted));
+  muteButton.title = muted ? '음소거 해제 (음성 합성 꺼짐)' : '음소거 (음성 합성 끄기)';
+}
 
 // A second click soon after is a pat, so the first has to wait a moment.
 const DOUBLE_CLICK_MS = 260;
 let clickTimer = null;
 
 window.addEventListener('mouseup', (e) => {
+  if (resize) return endResize();
   if (!drag) return;
-  const clicked = !drag.moved && character.hit(e.clientX, e.clientY);
+  const clicked = !drag.moved && !drag.fromMenu && character.hit(e.clientX, e.clientY);
   drag = null;
+  window.api.dragEnd();
   if (!clicked) return;
   if (clickTimer) {
     clearTimeout(clickTimer);
@@ -960,7 +1096,7 @@ window.addEventListener('contextmenu', (e) => {
 const idle = { since: performance.now(), next: 0, actUntil: 0 };
 
 const idleSeconds = () => (performance.now() - idle.since) / 1000;
-const isBusy = () => streaming || speech.running || !inputBar.hidden || !bubble.hidden || !!drag;
+const isBusy = () => streaming || speech.running || !inputBar.hidden || !bubble.hidden || !!drag || !!resize;
 
 // Any sign of the user resets the clock, and wakes her if she dozed off.
 function noteActivity() {
@@ -1015,13 +1151,18 @@ window.api.onMode((mode) => {
   config.character.mode = mode;
   applyMetrics();
   character.setMode(mode);
+  remeasureSoon();
 });
-window.api.onMuted(() => stopSpeech());
+window.api.onMuted((muted) => {
+  setMuteButton(muted);
+  stopSpeech();
+});
 window.api.onCursor(({ x, y }) => updateHit(x, y));
 window.api.onConfigChanged(async () => { config = await window.api.getConfig(); });
 
 function applyMetrics() {
   character.top = BUBBLE_SPACE * config.character.scale;
+  document.body.dataset.mode = config.character.mode;
 }
 
 (async () => {
@@ -1031,6 +1172,8 @@ function applyMetrics() {
     mode: config.character.mode,
     top: BUBBLE_SPACE * config.character.scale,
   });
+  document.body.dataset.mode = config.character.mode;
+  setMuteButton((await window.api.appAction('state')).muted);
   if (!status.dir) {
     showBubble('모델 폴더를 찾지 못했어요. 설정에서 지정해 주세요.', 'error');
     return;

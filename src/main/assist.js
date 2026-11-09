@@ -7,7 +7,6 @@ const { app } = require('electron');
 
 const HOUR = 3600000;
 const FULLNESS_LOSS_PER_HOUR = 3;
-const FEED_AMOUNT = 35;
 
 const file = () => path.join(app.getPath('userData'), 'assist.json');
 let state = null;
@@ -100,7 +99,7 @@ function pet() {
 function feed() {
   const p = pet();
   const wasFull = p.fullness >= 90;
-  p.fullness = Math.min(100, p.fullness + FEED_AMOUNT);
+  p.fullness = 100; // one bowl fills her up
   save();
   return { fullness: Math.round(p.fullness), wasFull };
 }

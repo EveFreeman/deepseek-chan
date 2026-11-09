@@ -496,3 +496,36 @@ test('a long page is cut to its opening and the passages about the question', ()
   assert.ok(blind.startsWith('서울 날씨') && blind.endsWith(text.slice(-100)));
   assert.strictEqual(excerpt('짧은 글', '무엇', 3000), '짧은 글');
 });
+
+test('the hourly call says the time in words and has a line for every hour', () => {
+  const { chimeLine, timeLabel } = require('../src/main/chime');
+  assert.strictEqual(timeLabel(0), '밤 열두 시');
+  assert.strictEqual(timeLabel(3), '새벽 세 시');
+  assert.strictEqual(timeLabel(12), '낮 열두 시');
+  assert.strictEqual(timeLabel(15), '오후 세 시');
+  assert.strictEqual(timeLabel(19), '저녁 일곱 시');
+  assert.strictEqual(timeLabel(23), '밤 열한 시');
+  for (let hour = 0; hour < 24; hour++) {
+    for (const roll of [0, 0.99]) {
+      const [text, tags] = chimeLine(hour, () => roll);
+      assert.ok(text.startsWith(`${timeLabel(hour)}예요. `), text);
+      assert.ok(tags.every((t) => motions.KNOWN_TAGS.has(t)), `${hour}: ${tags}`);
+    }
+  }
+});
+
+test('idle acts use known clips and never turn the arms', () => {
+  const ARM = /^(LArm|RArm|LForearm|RForearm|Param3\d|Param4\d|Param5\d|Param6\d)$/;
+  const lively = ['dance', 'sing', 'giggle', 'wiggle', 'hopHop', 'shakeOff', 'sneeze', 'kiss', 'peekaboo', 'startle'];
+  for (const name of lively) {
+    const act = motions.IDLE_ACTS.find((a) => a.name === name);
+    assert.ok(act, name);
+    assert.ok(!act.hand, name);
+    for (const [, clip] of act.beats) {
+      const [, move] = motions.CLIPS[clip];
+      for (const p of [0.25, 0.5, 0.75]) {
+        for (const id of Object.keys(move(p, 1))) assert.ok(!ARM.test(id), `${name}/${clip} moves ${id}`);
+      }
+    }
+  }
+});

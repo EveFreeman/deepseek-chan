@@ -673,11 +673,42 @@ const formatWhen = (at) => new Date(at).toLocaleString('ko-KR', { month: 'numeri
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
 async function feed() {
-  const { fullness, wasFull } = await window.api.feed();
+  const { wasFull } = await window.api.feed();
+  hungry = false;
+  placeFood();
   announce(wasFull
     ? { text: '우으… 더는 못 먹어요. 그래도 남기진 않을 거예요.', tags: ['tired', 'sigh'] }
-    : { text: `${pick(['흰쌀밥이다! 잘 먹겠습니다!', '역시 주인님은 뭘 좀 아시네요!', '이게 바로 토큰보다 좋은 거예요.'])} (배부름 ${fullness}%)`, tags: ['excited', 'hop'] });
+    : { text: pick(['흰쌀밥이다! 잘 먹겠습니다!', '역시 주인님은 뭘 좀 아시네요!', '이게 바로 토큰보다 좋은 거예요.', '배불러요. 이제 일할 맛 나네요!']), tags: ['excited', 'hop'] });
 }
+
+// The rice-bowl bubble: shown beside her head while she is hungry and nothing else is
+// on screen above her.
+const foodEl = document.getElementById('food');
+const HUNGRY_BELOW = 50;
+const FOOD_CHECK_MS = 60000;
+let hungry = false;
+
+async function checkHunger() {
+  hungry = (await window.api.petStatus()).fullness < HUNGRY_BELOW;
+  placeFood();
+}
+
+function placeFood() {
+  const box = hungry && bubble.hidden && character?.model ? character.bounds() : null;
+  foodEl.hidden = !box;
+  if (!box) return;
+  const w = foodEl.offsetWidth;
+  const h = foodEl.offsetHeight;
+  // Up and to the right of her face, the tail pointing back at her.
+  const x = Math.min(window.innerWidth - w - 4, box.x + box.w * 0.62);
+  const y = Math.max(4, box.y + Math.min(box.h * 0.12, 60) - h * 0.75);
+  Object.assign(foodEl.style, { left: `${x}px`, top: `${y}px` });
+}
+
+foodEl.addEventListener('click', feed);
+setInterval(checkHunger, FOOD_CHECK_MS);
+// Out of the way while she talks; back when the speech bubble closes.
+new MutationObserver(() => placeFood()).observe(bubble, { attributes: true, attributeFilter: ['hidden'] });
 
 async function pat() {
   await window.api.pat();
@@ -899,7 +930,7 @@ function setInteractive(on) {
   window.api.setClickThrough(!on);
 }
 
-const overUi = (target) => target?.closest?.('#bubble, #input-bar, #palette, #tray, #confirm, #quick, .grip');
+const overUi = (target) => target?.closest?.('#bubble, #input-bar, #palette, #tray, #confirm, #quick, #food, .grip');
 
 // Driven by the main process's cursor feed rather than forwarded mouse events,
 // which do not reliably reach an unfocused transparent window.
@@ -914,9 +945,9 @@ function updateHit(x, y) {
 }
 
 // The main process moves the window with the cursor, at the offset it was grabbed at.
-function startDrag(e, fromMenu = false) {
+function startDrag(e) {
   if (e.button !== 0) return;
-  drag = { x: e.screenX, y: e.screenY, moved: false, fromMenu };
+  drag = { x: e.screenX, y: e.screenY, moved: false };
   window.api.dragStart();
 }
 
@@ -1042,15 +1073,12 @@ window.api.onScale((scale) => {
     placeHover();
     if (!resize) remeasureSoon();
   }
-});
-
-quickEl.addEventListener('mousedown', (e) => {
-  if (e.target.closest('[data-act="move"]')) startDrag(e, true);
+  setTimeout(placeFood, 700);
 });
 
 quickEl.addEventListener('click', async (e) => {
   const act = e.target.closest('button')?.dataset.act;
-  if (!act || act === 'move') return;
+  if (!act) return;
   const state = await window.api.appAction(act);
   if (act === 'mute') setMuteButton(state.muted);
 });
@@ -1067,7 +1095,7 @@ let clickTimer = null;
 window.addEventListener('mouseup', (e) => {
   if (resize) return endResize();
   if (!drag) return;
-  const clicked = !drag.moved && !drag.fromMenu && character.hit(e.clientX, e.clientY);
+  const clicked = !drag.moved && character.hit(e.clientX, e.clientY);
   drag = null;
   window.api.dragEnd();
   if (!clicked) return;
@@ -1152,6 +1180,7 @@ window.api.onMode((mode) => {
   applyMetrics();
   character.setMode(mode);
   remeasureSoon();
+  setTimeout(placeFood, 700); // once she has settled into the new look
 });
 window.api.onMuted((muted) => {
   setMuteButton(muted);
@@ -1181,6 +1210,7 @@ function applyMetrics() {
   try {
     await character.load(status.url);
     window.dscReady = true;
+    setTimeout(checkHunger, 1500);
   } catch (err) {
     showBubble(`모델을 불러오지 못했어요: ${err.message}`, 'error');
   }

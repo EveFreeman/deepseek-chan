@@ -69,6 +69,37 @@ const CLIPS = {
   blep: [1.1, (p) => ({ TongueOut: hold(p) })],
   fidget: [1.8, (p, a) => ({ ParamBodyAngleX: 5 * a * wave(p, 2), ParamEyeBallY: -0.6 * hold(p), ParamEyeBallX: 0.5 * wave(p, 2), ParamAngleY: -6 * a * hold(p) })],
   explain: [1.6, (p, a) => ({ ParamAngleX: 7 * a * wave(p, 1), ParamBodyAngleZ: 3 * a * wave(p, 1), ParamAngleY: -3 * a * Math.abs(wave(p, 2)) })],
+  // Lively moves for when she is left alone. Head, body, ears, tail and face only,
+  // the way a tracked face moves; turning the arms looks mechanical.
+  groove: [3.2, (p, a) => ({ ParamAngleY: -8 * a * Math.abs(wave(p, 4)) * hump(p), PositionY: -5 * a * Math.abs(wave(p, 4)) * hump(p), ParamBodyAngleZ: 6 * a * wave(p, 2) * hump(p), ParamAngleZ: 7 * a * wave(p, 2) * hump(p) })],
+  sing: [3.6, (p, a) => ({ ParamMouthOpenY: 0.6 * Math.abs(wave(p, 4.5)) * hump(p), ParamAngleY: 6 * a * hold(p), ParamAngleZ: 6 * a * wave(p, 1) * hump(p), ParamBodyAngleZ: 3 * a * wave(p, 1) * hump(p) })],
+  giggle: [1.4, (p, a) => ({ ParamAngleY: -6 * a * Math.abs(wave(p, 5)) * hump(p), ParamBodyAngleY: -3 * a * Math.abs(wave(p, 5)) * hump(p), ParamAngleZ: 6 * a * hold(p) })],
+  sneeze: [1.8, (p, a) => {
+    const windUp = p < 0.6 ? hump(p / 1.2) : 0; // rises, then gives way to the burst
+    const burst = p >= 0.55 ? hump((p - 0.55) / 0.45) : 0;
+    return {
+      ParamAngleY: 12 * a * windUp - 20 * a * burst, LeanInput: 8 * a * windUp - 16 * a * burst,
+      ParamEyeLOpen: -0.5 * windUp - burst, ParamEyeROpen: -0.5 * windUp - burst,
+      ParamMouthOpenY: 0.5 * windUp, LControl: 0.9 * burst, RControl: 0.9 * burst,
+    };
+  }],
+  wiggle: [2.4, (p, a) => ({ HipAngleX: 10 * a * wave(p, 3) * hump(p), ParamBodyAngleZ: -5 * a * wave(p, 3) * hump(p), ParamAngleZ: 4 * a * wave(p, 3) * hump(p), PositionX: 5 * a * wave(p, 3) * hump(p) })],
+  shakeOff: [1.2, (p, a) => ({
+    ParamAngleX: 15 * a * wave(p, 6) * hump(p), ParamAngleZ: 8 * a * wave(p, 6) * hump(p), ParamBodyAngleX: 5 * a * wave(p, 6) * hump(p),
+    LControl: 0.9 * wave(p, 6) * hump(p), RControl: -0.9 * wave(p, 6) * hump(p), ParamEyeLOpen: -1 * hold(p), ParamEyeROpen: -1 * hold(p),
+  })],
+  kiss: [1.5, (p, a) => ({ Mouthpucker: hold(p), ParamEyeLOpen: -1 * hold(p), LeanInput: -10 * a * hold(p), ParamAngleZ: 5 * a * hold(p) })],
+  hopHop: [1.2, (p, a) => ({ _y: -0.04 * a * Math.abs(wave(p, 1)), PositionY: 12 * a * Math.abs(wave(p, 1)), ParamBodyAngleY: 6 * a * Math.abs(wave(p, 1)), ParamAngleZ: 5 * a * wave(p, 0.5) })],
+  peekaboo: [2.4, (p, a) => {
+    const hide = p < 0.5 ? hold(p) : 0;
+    const boo = p >= 0.45 ? hump((p - 0.45) / 0.55) : 0;
+    return { ParamEyeLOpen: -hide, ParamEyeROpen: -hide, ParamAngleY: -10 * a * hide, LeanInput: -18 * a * boo, ParamEyeBallY: 0.3 * boo, ParamMouthOpenY: 0.6 * boo };
+  }],
+  startle: [1.8, (p, a) => {
+    const jolt = p < 0.35 ? hump(p / 0.35) : 0;
+    const look = Math.max(0, Math.min(1, (p - 0.25) * 4)) * hump(p) ** 0.4;
+    return { LeanInput: 12 * a * jolt, _y: -0.01 * a * jolt, ParamAngleX: 20 * a * look, ParamEyeBallX: 0.9 * look, ParamBodyAngleX: 6 * a * look };
+  }],
 };
 
 const EYE = {
@@ -343,6 +374,8 @@ const CLIP_LABELS = {
   nod: '끄덕', shake: '도리도리', tiltL: '갸웃', bow: '꾸벅', leanIn: '앞으로 기울이기', chinUp: '턱 들기', hop: '폴짝',
   sway: '살랑', armsOpen: '팔 벌리기', armsWide: '활짝 벌리기', shrug: '으쓱', tailWag: '꼬리 흔들기', earFlap: '귀 파닥',
   wink: '윙크', blep: '메롱', puff: '볼 부풀리기', sigh: '한숨', doze: '꾸벅꾸벅',
+  groove: '리듬 타기', sing: '노래', giggle: '킥킥', sneeze: '재채기', wiggle: '씰룩씰룩', shakeOff: '부르르',
+  kiss: '쪽', hopHop: '깡총깡총', peekaboo: '까꿍', startle: '화들짝',
 };
 
 // Rest poses from the model's own motion files. `hand` is the mesh switch for that
@@ -437,8 +470,8 @@ const IDLE_ACTS = [
   { name: 'ears', after: 15, weight: 3, seconds: 2, beats: [[0, 'earFlap', 0.8], [0.5, 'blink2', 1]] },
   { name: 'tilt', after: 15, weight: 3, seconds: 2.4, face: FACE.browsUp, beats: [[0, 'tiltL', 0.8], [0.4, 'glance', 1]] },
   { name: 'hum', after: 25, weight: 4, seconds: 4.2, face: { ...EYE.joy, ...FACE.smile }, beats: [[0, 'hum', 1]] },
-  { name: 'stretch', after: 30, weight: 3, seconds: 3, beats: [[0, 'stretch', 1], [0.75, 'sigh', 0.4]] },
-  { name: 'yawn', after: 40, weight: 3, seconds: 3, beats: [[0, 'yawn', 1], [0.7, 'blink2', 1]] },
+  { name: 'stretch', after: 30, weight: 2, seconds: 3, beats: [[0, 'stretch', 1], [0.75, 'sigh', 0.4]] },
+  { name: 'yawn', after: 40, weight: 2, seconds: 3, beats: [[0, 'yawn', 1], [0.7, 'blink2', 1]] },
   { name: 'blep', after: 30, weight: 2, seconds: 2.4, face: FACE.softSmile, beats: [[0, 'glance', 1], [0.3, 'blep', 1]] },
   { name: 'peek', after: 30, weight: 3, seconds: 3, face: { ...FACE.softSmile, ...FACE.browsUp }, beats: [[0, 'leanIn', 0.7], [0.5, 'blink2', 1]] },
   { name: 'hungry', after: 45, weight: 2, seconds: 3.2, face: { ...EYE.half, ...FACE.worried }, beats: [[0, 'sigh', 0.8], [0.3, 'lookDown', 0.6]] },
@@ -446,7 +479,17 @@ const IDLE_ACTS = [
   { name: 'study', after: 45, weight: 2, seconds: 4, face: { key11: 1, ...FACE.softSmile }, beats: [[0, 'lookDown', 0.7], [0.5, 'nod', 0.5]] },
   { name: 'monocle', after: 60, weight: 1, seconds: 3.6, face: { key12: 1, ...FACE.browsUp }, beats: [[0, 'chinUp', 0.5], [0.5, 'glance', 1]] },
   { name: 'foxtail', after: 60, weight: 2, seconds: 5, face: { ...FACE.smile, key9: 1 }, hand: 'foxtail', beats: [[0, 'hum', 0.7], [0.4, 'tailWag', 1]] },
-  { name: 'nodOff', after: 90, weight: 3, seconds: 4, face: EYE.half, beats: [[0, 'doze', 1], [0.55, 'doze', 1]] },
+  { name: 'nodOff', after: 90, weight: 2, seconds: 4, face: EYE.half, beats: [[0, 'doze', 1], [0.55, 'doze', 1]] },
+  { name: 'dance', after: 15, weight: 4, seconds: 3.4, face: { ...EYE.joy, ...FACE.smile }, beats: [[0, 'groove', 1], [0.1, 'earFlap', 0.7], [0.4, 'tailWag', 1.2]] },
+  { name: 'sing', after: 20, weight: 3, seconds: 3.8, face: { EyeSmile: 0.6, ...FACE.softSmile, ...FACE.browsUp }, beats: [[0, 'sing', 1], [0.5, 'tailWag', 0.8]] },
+  { name: 'giggle', after: 15, weight: 3, seconds: 1.8, face: { ...EYE.joy, ...FACE.grin, key7: 0.4 }, beats: [[0, 'giggle', 1], [0.3, 'earFlap', 0.5]] },
+  { name: 'wiggle', after: 20, weight: 3, seconds: 2.6, face: { ...FACE.smile, key9: 1 }, beats: [[0, 'wiggle', 1], [0.2, 'tailWag', 1.3]] },
+  { name: 'hopHop', after: 20, weight: 3, seconds: 1.6, face: { ...FACE.grin, ...FACE.browsUp }, beats: [[0, 'hopHop', 1], [0.1, 'earPerk', 1]] },
+  { name: 'shakeOff', after: 30, weight: 2, seconds: 1.6, face: FACE.oh, beats: [[0, 'shakeOff', 1], [0.8, 'blink2', 1]] },
+  { name: 'sneeze', after: 30, weight: 2, seconds: 2.2, face: { BrowInnerUp: 0.8 }, beats: [[0, 'sneeze', 1], [0.85, 'blink2', 1]] },
+  { name: 'kiss', after: 30, weight: 2, seconds: 1.9, face: { key7: 0.7, ...FACE.softSmile }, beats: [[0, 'kiss', 1], [0.3, 'tailWag', 0.8]] },
+  { name: 'peekaboo', after: 30, weight: 2, seconds: 2.6, face: { ...FACE.browsUp, ...FACE.smile }, beats: [[0, 'peekaboo', 1], [0.6, 'earPerk', 1]] },
+  { name: 'startle', after: 25, weight: 2, seconds: 2.4, face: { ...EYE.wide, ...FACE.oh }, beats: [[0, 'startle', 1], [0, 'earPerk', 1.1], [0.75, 'blink2', 1]] },
 ];
 
 // Weighted random pick among what is allowed yet, never the same act twice running.

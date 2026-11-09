@@ -16,6 +16,7 @@ const search = require('./search');
 const attachments = require('./attachments');
 const transcript = require('./transcript');
 const assist = require('./assist');
+const { chimeLine } = require('./chime');
 const stt = require('./stt');
 const docs = require('./docs');
 const { grabSelection } = require('./selection');
@@ -257,6 +258,13 @@ function setMode(mode) {
   refreshTray();
 }
 
+// The quick menu's button steps through every look and round again.
+const MODE_CYCLE = ['full', 'bust', 'sd'];
+function cycleMode() {
+  const { mode } = store.load().character;
+  setMode(MODE_CYCLE[(MODE_CYCLE.indexOf(mode) + 1) % MODE_CYCLE.length]);
+}
+
 // The SD shortcut goes back to whichever full-size mode she was in before.
 function toggleMode() {
   const c = store.load().character;
@@ -463,14 +471,14 @@ function greet() {
   if (!proactive || assist.get('lastGreeting') === today) return;
   assist.mark('lastGreeting', today);
   if (hours >= 48) say(`${Math.floor(hours / 24)}일이나 어디 갔다 온 거예요? 저 혼자 흰밥만 먹고 있었잖아요.`, ['pout']);
-  else if (assist.pet().fullness < 20) say('주인님… 밥… 배고파서 일을 못 하겠어요. /밥 한 번만요.', ['hungry']);
+  else if (assist.pet().fullness < 20) say('주인님… 밥… 배고파서 일을 못 하겠어요. 밥그릇 한 번만 눌러 주세요.', ['hungry']);
   else say(...greetingLine(new Date().getHours()));
 }
 
 const REMINDER_CHECK_MS = 1000;
-const BREAK_AFTER_MS = 90 * 60000;
 const AWAY_SECONDS = 300;
-let activeSince = Date.now();
+const hourStamp = (d) => `${d.toDateString()} ${d.getHours()}`;
+let lastChime = hourStamp(new Date()); // not on the hour she was started in
 
 function tickAssist() {
   for (const reminder of assist.takeDue()) {
@@ -480,10 +488,11 @@ function tickAssist() {
     say(`주인님, ${late ? '아까 ' : ''}${reminder.text} 시간이에요!`, ['warning']);
     logEntry({ role: 'assistant', text: `알림: ${reminder.text}` });
   }
-  if (powerMonitor.getSystemIdleTime() >= AWAY_SECONDS) activeSince = Date.now();
-  else if (store.load().proactive && Date.now() - activeSince >= BREAK_AFTER_MS) {
-    activeSince = Date.now();
-    say('한참 일하셨어요. 물 한 잔 마시고 잠깐 쉬어요.', ['comfort']);
+  // On the hour she tells the time, unless the user is away or a reply is under way.
+  const now = new Date();
+  if (now.getMinutes() === 0 && hourStamp(now) !== lastChime) {
+    lastChime = hourStamp(now);
+    if (store.load().proactive && !abort && powerMonitor.getSystemIdleTime() < AWAY_SECONDS) say(...chimeLine(now.getHours()));
   }
 }
 
@@ -1042,6 +1051,7 @@ function registerIpc() {
   ipcMain.handle('app:action', (_e, name, arg) => {
     if (name === 'mute') setMuted(!muted);
     if (name === 'sd') toggleMode();
+    if (name === 'cycle') cycleMode();
     if (name === 'bust') setMode(store.load().character.mode === 'bust' ? 'full' : 'bust');
     if (name === 'hide') toggleVisible();
     if (name === 'dashboard') openControl('dashboard');

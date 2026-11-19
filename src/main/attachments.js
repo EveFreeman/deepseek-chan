@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { nativeImage } = require('electron');
 const guard = require('./web-guard');
+const { t } = require('../shared/i18n');
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_TEXT_BYTES = 200 * 1024;
@@ -19,7 +20,7 @@ const TEXT_EXTENSIONS = [
   'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'kt', 'go', 'rs', 'c', 'h', 'cpp', 'cs', 'rb', 'php', 'sh', 'sql',
 ];
 const FILE_FILTERS = [
-  { name: '이미지와 텍스트', extensions: [...Object.keys(IMAGE_TYPES).map((e) => e.slice(1)), ...TEXT_EXTENSIONS] },
+  { name: t('attach.filter'), extensions: [...Object.keys(IMAGE_TYPES).map((e) => e.slice(1)), ...TEXT_EXTENSIONS] },
 ];
 
 const items = new Map();
@@ -46,7 +47,7 @@ function restoreSent() {
 }
 
 function add(item) {
-  if (items.size >= MAX_ITEMS) throw new Error(`첨부는 ${MAX_ITEMS}개까지 가능합니다.`);
+  if (items.size >= MAX_ITEMS) throw new Error(t('err.attachMax', { max: MAX_ITEMS }));
   const id = crypto.randomUUID();
   items.set(id, { hold: false, ...item, id });
   return id;
@@ -71,14 +72,14 @@ function addFile(file) {
   const extension = path.extname(file).toLowerCase();
   const size = fs.statSync(file).size;
   if (IMAGE_TYPES[extension]) {
-    if (size > MAX_IMAGE_BYTES) throw new Error(`${name}: 이미지는 20MB 이하만 가능합니다.`);
+    if (size > MAX_IMAGE_BYTES) throw new Error(t('err.imageTooBig', { name }));
     const image = nativeImage.createFromPath(file);
     if (!image.isEmpty()) return addImage(image, name);
     // Formats nativeImage cannot decode go through as they are.
     return add({ name, kind: 'image', data: asDataUrl(IMAGE_TYPES[extension], fs.readFileSync(file)), thumb: null });
   }
-  if (!TEXT_EXTENSIONS.includes(extension.slice(1))) throw new Error(`${name}: 이미지나 텍스트 파일만 첨부할 수 있습니다.`);
-  if (size > MAX_TEXT_BYTES) throw new Error(`${name}: 텍스트 파일은 200KB 이하만 가능합니다.`);
+  if (!TEXT_EXTENSIONS.includes(extension.slice(1))) throw new Error(t('err.notAttachable', { name }));
+  if (size > MAX_TEXT_BYTES) throw new Error(t('err.textTooBig', { name }));
   return addText(fs.readFileSync(file, 'utf8'), name);
 }
 
@@ -92,7 +93,7 @@ function toContent(text) {
   const all = [...items.values()];
   if (!all.length) return text;
   const notes = all.filter((a) => a.kind === 'text')
-    .map((a) => `첨부 파일 "${guard.clean(a.name)}":\n${guard.fence(guard.clean(a.text))}`);
+    .map((a) => `Attached file "${guard.clean(a.name)}":\n${guard.fence(guard.clean(a.text))}`);
   const parts = [{ type: 'text', text: [...notes, text].join('\n\n') }];
   for (const a of all) if (a.kind === 'image') parts.push({ type: 'image_url', image_url: { url: a.data } });
   return parts.length === 1 ? parts[0].text : parts;
@@ -101,7 +102,7 @@ function toContent(text) {
 // What chat history keeps: file contents would bloat every later request.
 function historyNote(text) {
   const names = [...items.values()].map((a) => a.name);
-  return names.length ? `${text}\n(첨부: ${names.join(', ')})` : text;
+  return names.length ? `${text}\n(attached: ${names.join(', ')})` : text;
 }
 
 module.exports = { FILE_FILTERS, list, remove, clear, toggleHold, releaseSent, restoreSent, addFile, addImage, addText, toContent, historyNote };

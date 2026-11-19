@@ -18,12 +18,12 @@ const HEADERS = {
 
 async function assertPublic(url) {
   const { hostname, protocol, username, password } = new URL(url);
-  if (protocol !== 'https:' && protocol !== 'http:') throw new Error('허용되지 않는 프로토콜입니다.');
-  if (username || password) throw new Error('URL에 계정 정보를 넣을 수 없습니다.');
-  if (guard.PRIVATE_HOST.test(hostname)) throw new Error('내부 주소는 읽을 수 없습니다.');
+  if (protocol !== 'https:' && protocol !== 'http:') throw new Error('Protocol not allowed.');
+  if (username || password) throw new Error('URLs may not carry credentials.');
+  if (guard.PRIVATE_HOST.test(hostname)) throw new Error('Private addresses cannot be read.');
   const host = hostname.replace(/^\[|\]$/g, '');
   const addresses = await dns.lookup(host, { all: true });
-  if (!addresses.length || addresses.some((a) => guard.isPrivateAddress(a.address))) throw new Error('내부 주소는 읽을 수 없습니다.');
+  if (!addresses.length || addresses.some((a) => guard.isPrivateAddress(a.address))) throw new Error('Private addresses cannot be read.');
 }
 
 async function readCapped(res) {
@@ -99,14 +99,14 @@ async function fetchPage(url) {
       href = new URL(res.headers.get('location'), href).href;
       continue;
     }
-    if (!res.ok) throw new Error(`사이트가 ${res.status} 오류로 응답했습니다.`);
+    if (!res.ok) throw new Error(`The site answered with error ${res.status}.`);
     const type = res.headers.get('content-type') ?? '';
-    if (type && !TEXT_TYPES.test(type)) throw new Error(`글로 된 페이지가 아닙니다 (${type.split(';')[0]}).`);
+    if (type && !TEXT_TYPES.test(type)) throw new Error(`Not a text page (${type.split(';')[0]}).`);
     const text = decode(await readCapped(res), type);
     const page = /html/i.test(type) || /^\s*</.test(text) ? htmlToText(text) : { title: '', content: text };
     return { ...page, url: href };
   }
-  throw new Error('리다이렉트가 너무 많습니다.');
+  throw new Error('Too many redirects.');
 }
 
 module.exports = { fetchPage, htmlToText, decode };

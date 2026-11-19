@@ -1,4 +1,5 @@
 const { normalizeUsage } = require('./pricing');
+const { t } = require('../shared/i18n');
 
 const endpoint = (baseUrl, route) => `${baseUrl.replace(/\/+$/, '')}${route}`;
 
@@ -13,7 +14,7 @@ function parseExtra(extra) {
   try {
     return JSON.parse(extra);
   } catch {
-    throw new Error('추가 파라미터가 올바른 JSON이 아닙니다.');
+    throw new Error(t('err.badExtra'));
   }
 }
 
@@ -21,7 +22,7 @@ async function errorMessage(res) {
   const text = await res.text().catch(() => '');
   let detail = text.slice(0, 300);
   try { detail = JSON.parse(text).error?.message ?? detail; } catch { /* plain text body */ }
-  return `API 오류 ${res.status}: ${detail}`;
+  return t('err.api', { status: res.status, detail });
 }
 
 // Streams an OpenAI-compatible chat completion. Resolves to { text, usage,
@@ -67,7 +68,7 @@ async function streamChat({ profile, apiKey, messages, tools, toolChoice, signal
     if (!data || data === '[DONE]') return;
     let chunk;
     try { chunk = JSON.parse(data); } catch { return; }
-    if (chunk.error) throw new Error(chunk.error.message || 'API 스트림 오류');
+    if (chunk.error) throw new Error(chunk.error.message || t('err.stream'));
     if (chunk.usage) usage = normalizeUsage(chunk.usage);
     const delta = chunk.choices?.[0]?.delta;
     if (delta?.reasoning_content) reasoning += delta.reasoning_content;

@@ -10,6 +10,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { inPeak, chatCost, normalizeUsage, estimateTokens } = require('../src/main/pricing');
+const I18n = require('../src/shared/i18n');
+
+// The tests below were written against the Korean texts.
+I18n.setLang('ko');
 
 function parse(chunks) {
   const out = [];
@@ -89,7 +93,7 @@ test('emotion intensity is parsed from the tag', () => {
 test('every preset uses known clips, gestures and sane beat positions', () => {
   assert.ok(Object.values(motions.PRESETS).flat().length >= 100);
   for (const [emotion, list] of Object.entries(motions.PRESETS)) {
-    assert.ok(motions.EMOTION_LABELS[emotion], emotion);
+    for (const lang of Object.keys(I18n.LANGS)) assert.ok(I18n.raw(`emotions.${emotion}`, lang), `${lang}: ${emotion}`);
     for (const preset of list) {
       for (const [at, clip] of preset.beats ?? []) {
         assert.ok(motions.CLIPS[clip], `${emotion}: ${clip}`);
@@ -260,10 +264,11 @@ test('every command name and alias is unique', () => {
 });
 
 test('help lists every command exactly once, and unknown commands show it', () => {
+  const help = commands.helpText();
   for (const { name } of commands.COMMANDS) {
-    assert.strictEqual(commands.HELP_TEXT.split(`/${name}`).length >= 2, true, name);
+    assert.strictEqual(help.split(`/${name}`).length >= 2, true, name);
   }
-  const shown = commands.HELP_TEXT.match(/\/[^\s]+/g);
+  const shown = help.match(/\/[^\s]+/g);
   assert.strictEqual(shown.length, commands.COMMANDS.length);
   assert.strictEqual(new Set(shown).size, shown.length);
   const text = commands.unknownText('없는거');
@@ -435,6 +440,9 @@ test('an update fast-forwards a git clone and never overwrites local edits', asy
 
     fs.writeFileSync(path.join(app, 'a.txt'), 'edited here\n');
     await assert.rejects(updates.apply(), /고친 파일/);
+  I18n.setLang('en');
+  await assert.rejects(updates.apply(), /changed on this computer/);
+  I18n.setLang('ko');
     assert.strictEqual(fs.readFileSync(path.join(app, 'a.txt'), 'utf8'), 'edited here\n');
 
     git(app, 'checkout', '--', 'a.txt');
@@ -490,7 +498,7 @@ test('a long page is cut to its opening and the passages about the question', ()
   assert.ok(cut.length <= 3200);
   assert.ok(cut.startsWith('서울 날씨 안내 페이지'));
   assert.ok(cut.includes('오후부터 비가 오고'));
-  assert.ok(cut.includes('…(중략)…'));
+  assert.ok(cut.includes('…(skipped)…'));
   // Nothing matching: the head and the end of the page.
   const blind = excerpt(text, 'zzzz', 3000);
   assert.ok(blind.startsWith('서울 날씨') && blind.endsWith(text.slice(-100)));
@@ -499,16 +507,16 @@ test('a long page is cut to its opening and the passages about the question', ()
 
 test('the hourly call says the time in words and has a line for every hour', () => {
   const { chimeLine, timeLabel } = require('../src/main/chime');
-  assert.strictEqual(timeLabel(0), '밤 열두 시');
-  assert.strictEqual(timeLabel(3), '새벽 세 시');
-  assert.strictEqual(timeLabel(12), '낮 열두 시');
-  assert.strictEqual(timeLabel(15), '오후 세 시');
-  assert.strictEqual(timeLabel(19), '저녁 일곱 시');
-  assert.strictEqual(timeLabel(23), '밤 열한 시');
+  assert.strictEqual(timeLabel(0), '밤 열두 시예요.');
+  assert.strictEqual(timeLabel(3), '새벽 세 시예요.');
+  assert.strictEqual(timeLabel(12), '낮 열두 시예요.');
+  assert.strictEqual(timeLabel(15), '오후 세 시예요.');
+  assert.strictEqual(timeLabel(19), '저녁 일곱 시예요.');
+  assert.strictEqual(timeLabel(23), '밤 열한 시예요.');
   for (let hour = 0; hour < 24; hour++) {
     for (const roll of [0, 0.99]) {
       const [text, tags] = chimeLine(hour, () => roll);
-      assert.ok(text.startsWith(`${timeLabel(hour)}예요. `), text);
+      assert.ok(text.startsWith(`${timeLabel(hour)} `), text);
       assert.ok(tags.every((t) => motions.KNOWN_TAGS.has(t)), `${hour}: ${tags}`);
     }
   }
@@ -573,4 +581,94 @@ test('setup unzip: unpacks names and refuses paths outside the folder', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ------------------------------------------------------------------ languages
+
+test('every locale has the same keys, placeholders and line counts as English', () => {
+  const flat = (o, p = '', out = {}) => {
+    for (const [k, v] of Object.entries(o)) {
+      const key = p ? `${p}.${k}` : k;
+      if (v && typeof v === 'object' && !Array.isArray(v)) flat(v, key, out);
+      else out[key] = v;
+    }
+    return out;
+  };
+  const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
+  const en = flat(I18n.TABLES.en);
+  for (const lang of Object.keys(I18n.LANGS)) {
+    const table = flat(I18n.TABLES[lang]);
+    assert.deepStrictEqual(Object.keys(table).sort(), Object.keys(en).sort(), lang);
+    for (const [key, value] of Object.entries(en)) {
+      if (typeof value === 'string') assert.strictEqual(placeholders(table[key]), placeholders(value), `${lang}: ${key}`);
+      if (Array.isArray(value)) assert.strictEqual(table[key].length, value.length, `${lang}: ${key}`);
+    }
+  }
+});
+
+test('language codes from the system map to a supported language', () => {
+  assert.strictEqual(I18n.normalize('ko-KR'), 'ko');
+  assert.strictEqual(I18n.normalize('ja'), 'ja');
+  assert.strictEqual(I18n.normalize('zh-TW'), 'zh');
+  assert.strictEqual(I18n.normalize('fr-FR'), 'en');
+  assert.strictEqual(I18n.normalize(undefined), 'en');
+});
+
+test('the hourly call works in every language', () => {
+  const { chimeLine } = require('../src/main/chime');
+  try {
+    for (const lang of Object.keys(I18n.LANGS)) {
+      I18n.setLang(lang);
+      for (let hour = 0; hour < 24; hour++) {
+        const [text, tags] = chimeLine(hour, () => 0.99);
+        assert.ok(text.length > 5 && !text.includes('{'), `${lang} ${hour}: ${text}`);
+        assert.ok(tags.every((t) => motions.KNOWN_TAGS.has(t)), `${lang} ${hour}`);
+      }
+    }
+    I18n.setLang('ja');
+    assert.strictEqual(chimeLine(15, () => 0)[0].split(' ')[0], '午後さん時です。');
+  } finally {
+    I18n.setLang('ko');
+  }
+});
+
+test('commands answer to their name in any language and show the current one', () => {
+  try {
+    for (const [word, id] of [['websearch', '웹검색'], ['検索', '검색'], ['联网搜索', '웹검색'], ['ヘルプ', '도움말'], ['帮助', '도움말'], ['remind', '알림']]) {
+      assert.strictEqual(commands.resolve(word)?.name, id, word);
+    }
+    I18n.setLang('en');
+    assert.strictEqual(commands.label(commands.resolve('검색')), 'search');
+    assert.ok(commands.helpText().includes('/remind'));
+    assert.ok(commands.unknownText('nope').startsWith("There's no /nope command."));
+    I18n.setLang('zh');
+    assert.ok(commands.helpText().includes('/提醒'));
+  } finally {
+    I18n.setLang('ko');
+  }
+});
+
+test('reminders are found in English, Japanese and Chinese too', () => {
+  const NOON = new Date(2026, 10, 19, 12, 0, 0).getTime();
+  const at = (r) => new Date(r.at).toTimeString().slice(0, 5);
+  const cases = [
+    ['remind me in 30 minutes to call mom', '12:30', 'call mom'],
+    ['remind me to stretch in 1 hour', '13:00', 'stretch'],
+    ['remind me at 3:30 pm to take medicine', '15:30', 'take medicine'],
+    ['30分後に会議を教えて', '12:30', '会議'],
+    ['午後3時半に薬を飲むって教えて', '15:30', '薬を飲む'],
+    ['30分钟后提醒我开会', '12:30', '开会'],
+    ['下午3点半提醒我吃药', '15:30', '吃药'],
+  ];
+  for (const [text, time, memo] of cases) {
+    const r = parseReminder(text, NOON);
+    assert.ok(r, text);
+    assert.strictEqual(at(r), time, text);
+    assert.strictEqual(r.text, memo, text);
+  }
+  for (const text of ['can you tell me what this does', 'I have 3 meetings, remind me', 'この関数が何をするか教えて', '提醒我这个函数是做什么的']) {
+    assert.strictEqual(parseReminder(text, NOON), null, text);
+  }
+  assert.strictEqual(parseReminder('10分钟 喝水', NOON, true).text, '喝水');
+  assert.strictEqual(parseReminder('10 min drink water', NOON, true).text, 'drink water');
 });

@@ -1,4 +1,5 @@
 const { endpoint, headers } = require('./llm');
+const { t } = require('../shared/i18n');
 
 async function openaiCompatible(text, openai, apiKey) {
   const res = await fetch(endpoint(openai.baseUrl, '/audio/speech'), {
@@ -7,7 +8,7 @@ async function openaiCompatible(text, openai, apiKey) {
     body: JSON.stringify({ model: openai.model, voice: openai.voice, input: text, response_format: 'mp3' }),
     signal: AbortSignal.timeout(30000),
   });
-  if (!res.ok) throw new Error(`TTS 오류 ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(t('err.tts', { status: res.status, detail: (await res.text()).slice(0, 200) }));
   return { audio: Buffer.from(await res.arrayBuffer()), mime: 'audio/mpeg' };
 }
 

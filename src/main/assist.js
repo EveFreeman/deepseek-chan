@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron');
+const { t } = require('../shared/i18n');
 
 const HOUR = 3600000;
 const FULLNESS_LOSS_PER_HOUR = 3;
@@ -60,7 +61,7 @@ const MAX_MEMORY = 50;
 
 function remember(text) {
   const list = load().memories;
-  if (list.length >= MAX_MEMORY) throw new Error(`기억은 ${MAX_MEMORY}개까지입니다. /잊어 로 정리해 주세요.`);
+  if (list.length >= MAX_MEMORY) throw new Error(t('err.memoryFull', { max: MAX_MEMORY, cmd: require('../shared/commands').slash('잊어') }));
   list.push({ id: crypto.randomUUID(), text, ts: Date.now() });
   save();
 }
@@ -83,7 +84,7 @@ function forgetById(id) {
 function memoryPrompt() {
   const list = memories();
   if (!list.length) return '';
-  return `\n\n[주인님이 기억해 달라고 한 것]\n${list.map((m) => `- ${m.text}`).join('\n')}\n필요할 때 자연스럽게 참고하고, 매번 언급하지는 않는다.`;
+  return `\n\n[Things the user asked you to remember]\n${list.map((m) => `- ${m.text}`).join('\n')}\nRefer to them naturally when relevant; do not bring them up every time.`;
 }
 
 // ------------------------------------------------------------------------- pet

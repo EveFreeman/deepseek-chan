@@ -40,6 +40,18 @@ PRETRAINED = [
 LANGDETECT = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin"
 NLTK_ZIP = "https://huggingface.co/XXXXRT/GPT-SoVITS-Pretrained/resolve/main/nltk_data.zip"
 IS_WINDOWS = sys.platform == "win32"
+G2PW = SOVITS / "GPT_SoVITS" / "text"
+# The same archive GPT-SoVITS fetches from modelscope, which is slow outside China.
+G2PW_ZIP = "https://huggingface.co/XXXXRT/GPT-SoVITS-Pretrained/resolve/main/G2PWModel.zip"
+
+
+def chosen_language():
+    """The language picked at the start of setup, from data/config.json."""
+    try:
+        import json
+        return json.loads((ROOT / "data" / "config.json").read_text(encoding="utf-8")).get("language")
+    except (OSError, ValueError):
+        return None
 
 
 def step(text):
@@ -126,6 +138,16 @@ def fetch_models():
         zipped = RUNTIME / "nltk_data.zip"
         download(NLTK_ZIP, zipped)
         zipfile.ZipFile(zipped).extractall(sys.prefix)
+        zipped.unlink()
+
+    # Chinese needs the G2PW pronunciation model. GPT-SoVITS would fetch it on the first
+    # Chinese sentence and keep that sentence waiting, so it is fetched here when Chinese
+    # is the chosen language.
+    if chosen_language() == "zh" and not (G2PW / "G2PWModel").exists():
+        step("Chinese pronunciation model (G2PW)")
+        zipped = G2PW / "G2PWModel.zip"
+        download(G2PW_ZIP, zipped)
+        zipfile.ZipFile(zipped).extractall(G2PW)  # holds G2PWModel/
         zipped.unlink()
 
     step("Whisper (voice input)")

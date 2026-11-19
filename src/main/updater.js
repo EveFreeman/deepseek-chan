@@ -4,6 +4,7 @@
 const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { t } = require('../shared/i18n');
 
 const IS_WIN = process.platform === 'win32';
 const GIT_CANDIDATES = IS_WIN
@@ -38,7 +39,7 @@ function updater(root) {
         return git;
       } catch { /* try the next */ }
     }
-    throw new Error('git을 찾지 못했습니다. Git을 설치하면 앱에서 업데이트할 수 있습니다.');
+    throw new Error(t('err.gitMissing'));
   }
 
   // A background check must never wait on a login window; one the user starts may.
@@ -88,13 +89,13 @@ function updater(root) {
   // made on this machine is overwritten.
   async function apply() {
     const edited = await gitIn(['status', '--porcelain', '--untracked-files=no']);
-    if (edited) throw new Error(`이 기기에서 고친 파일이 있어 업데이트를 멈췄습니다:\n${edited}`);
+    if (edited) throw new Error(t('err.updateEdited', { files: edited }));
     const changed = (await gitIn(['diff', '--name-only', 'HEAD', '@{u}'])).split('\n').filter(Boolean);
     const electronBefore = electronVersion();
     try {
       await gitIn(['merge', '--ff-only', '@{u}']);
     } catch (err) {
-      throw new Error(`이 기기에만 있는 커밋이 있어 그대로 합칠 수 없습니다. git으로 직접 정리해 주세요.\n${err.output ?? err.message}`);
+      throw new Error(t('err.updateDiverged', { output: err.output ?? err.message }));
     }
     const plan = planAfter(changed, electronBefore, electronVersion());
     // npm would replace the running Electron's folder; setup does that install instead.
@@ -107,7 +108,7 @@ function updater(root) {
     const nodeDir = path.join(root, 'runtime', 'node');
     const node = IS_WIN ? path.join(nodeDir, 'node.exe') : path.join(nodeDir, 'bin', 'node');
     const cli = IS_WIN ? path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js') : path.join(nodeDir, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
-    if (!fs.existsSync(node) || !fs.existsSync(cli)) throw new Error('앱의 Node.js(runtime\\node)를 찾지 못했습니다. setup을 다시 실행해 주세요.');
+    if (!fs.existsSync(node) || !fs.existsSync(cli)) throw new Error(t('err.noNode'));
     const env = {
       ...process.env,
       PATH: [path.dirname(node), process.env.PATH].join(path.delimiter),
@@ -116,7 +117,7 @@ function updater(root) {
     try {
       await run(node, [cli, 'install', '--no-audit', '--no-fund'], { cwd: root, env, timeout: NPM_TIMEOUT });
     } catch (err) {
-      throw new Error(`코드는 받았지만 npm install이 실패했습니다. setup을 다시 실행해 주세요.\n${(err.output ?? err.message).slice(-600)}`);
+      throw new Error(t('err.npmFailed', { output: (err.output ?? err.message).slice(-600) }));
     }
   }
 

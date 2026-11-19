@@ -24,7 +24,7 @@ const num = (id) => parseFloat($(id).value) || 0;
 // ------------------------------------------------------------------ connection
 
 const newProfile = () => ({
-  id: `p${Date.now()}`, name: '새 연결', baseUrl: '', model: '', extra: '',
+  id: `p${Date.now()}`, name: I18n.t('ui.newProfile'), baseUrl: '', model: '', extra: '',
   pricing: { input: 0, cached: 0, output: 0, peak: null },
 });
 
@@ -38,7 +38,7 @@ function renderProfiles() {
     const radio = document.createElement('input');
     radio.type = 'radio';
     radio.name = 'active';
-    radio.title = '대화에 사용';
+    radio.title = I18n.t('ui.useForChat');
     radio.checked = p.id === settings.activeProfileId;
     radio.addEventListener('change', async () => {
       settings = await window.api.setConfig({ activeProfileId: p.id });
@@ -46,7 +46,7 @@ function renderProfiles() {
     const text = document.createElement('div');
     text.textContent = p.name;
     const small = document.createElement('small');
-    small.textContent = `${p.model || '모델 미지정'}${p.hasKey ? '' : ' · 키 없음'}`;
+    small.textContent = `${p.model || I18n.t('ui.noModelSet')}${p.hasKey ? '' : I18n.t('ui.noKey')}`;
     text.append(small);
     li.append(radio, text);
     li.addEventListener('click', (e) => { if (e.target !== radio) editProfile(p); });
@@ -80,7 +80,7 @@ function editProfile(p) {
   editingId = p.id;
   $('p-preset').value = '';
   $('p-key').value = '';
-  $('p-key').placeholder = p.hasKey ? '저장됨 (바꾸려면 입력)' : '로컬 서버는 비워 두세요';
+  $('p-key').placeholder = I18n.t(p.hasKey ? 'ui.keySaved' : 'ui.keyLocal');
   fillProfile(p);
   renderProfiles();
 }
@@ -103,7 +103,12 @@ function readProfile() {
   };
 }
 
-$('p-preset').innerHTML = `<option value="">직접 입력</option>${PRESETS.map((p) => `<option value="${p.id}">${p.label}</option>`).join('')}`;
+function drawPresets() {
+  const value = $('p-preset').value;
+  $('p-preset').innerHTML = `<option value="">${esc(I18n.t('ui.custom'))}</option>${PRESETS.map((p) => `<option value="${p.id}">${esc(p.label)}${p.local ? ` (${esc(I18n.t('ui.local'))})` : ''}</option>`).join('')}`;
+  $('p-preset').value = value;
+}
+drawPresets();
 $('p-preset').addEventListener('change', (e) => {
   const preset = PRESETS.find((p) => p.id === e.target.value);
   if (preset) fillProfile(preset, preset.pricingUrl);
@@ -120,7 +125,7 @@ $('profile-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const profile = readProfile();
   if (profile.extra) {
-    try { JSON.parse(profile.extra); } catch { return flash('p-status', '추가 파라미터가 JSON 형식이 아닙니다.'); }
+    try { JSON.parse(profile.extra); } catch { return flash('p-status', I18n.t('ui.badJson')); }
   }
   const key = $('p-key').value;
   try {
@@ -129,11 +134,11 @@ $('profile-form').addEventListener('submit', async (e) => {
     return flash('p-status', err.message);
   }
   editProfile(settings.profiles.find((p) => p.id === profile.id));
-  flash('p-status', '저장했습니다.');
+  flash('p-status', I18n.t('ui.saved'));
 });
 
 $('p-delete').addEventListener('click', async () => {
-  if (!confirm('이 연결을 삭제할까요? 사용 기록은 남습니다.')) return;
+  if (!confirm(I18n.t('ui.deleteProfile'))) return;
   settings = await window.api.deleteProfile(editingId);
   if (settings.profiles[0]) editProfile(settings.profiles[0]);
   else $('add-profile').click();
@@ -143,7 +148,7 @@ $('p-fetch').addEventListener('click', async () => {
   try {
     const models = await window.api.listModels(readProfile(), $('p-key').value);
     $('p-models').innerHTML = models.map((m) => `<option value="${esc(m)}">`).join('');
-    flash('p-status', `모델 ${models.length}개를 찾았습니다.`);
+    flash('p-status', I18n.t('ui.modelsFound', { n: models.length }));
   } catch (err) {
     flash('p-status', err.message.replace(/^Error invoking remote method '.*?': (Error: )?/, ''));
   }
@@ -174,7 +179,7 @@ function fillVoice() {
   $('v-model').value = t.openai.model;
   $('v-oai-voice').value = t.openai.voice;
   $('v-price').value = t.openai.pricePerMChars;
-  $('v-key').placeholder = t.openai.hasKey ? '저장됨 (바꾸려면 입력)' : '';
+  $('v-key').placeholder = t.openai.hasKey ? I18n.t('ui.keySaved') : '';
   setVoiceVisible();
 }
 
@@ -214,16 +219,16 @@ $('g-ref-pick').addEventListener('click', async () => {
 $('voice-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   await saveVoice();
-  flash('v-status', '저장했습니다.');
+  flash('v-status', I18n.t('ui.saved'));
 });
 $('v-test').addEventListener('click', async () => {
   await saveVoice();
   try {
-    const result = await window.api.speak('안녕하세요, 딥시크쨩이에요. 목소리 잘 들리시나요?');
+    const result = await window.api.speak(I18n.t('voice.test'));
     if (result?.audio) {
       const url = URL.createObjectURL(new Blob([result.audio], { type: result.mime }));
       await new Audio(url).play();
-    } else flash('v-status', '음성이 꺼져 있습니다.');
+    } else flash('v-status', I18n.t('ui.voiceOff'));
   } catch (err) {
     flash('v-status', err.message.replace(/^Error invoking remote method '.*?': (Error: )?/, ''));
   }
@@ -233,7 +238,7 @@ $('v-test').addEventListener('click', async () => {
 
 const IS_MAC = navigator.platform.startsWith('Mac');
 
-const SHORTCUT_NAMES = { input: '입력창 열기', toggle: '보이기 / 숨기기', sd: 'SD 모드 전환', quick: '선택한 글 처리', voice: '음성 입력' };
+const SHORTCUT_KEYS = { input: 'ui.scInput', toggle: 'ui.scToggle', sd: 'ui.scSd', quick: 'ui.scQuick', voice: 'ui.scVoice' };
 
 function acceleratorFrom(e) {
   let key = null;
@@ -257,7 +262,7 @@ function acceleratorFrom(e) {
 // Accelerators are stored in Electron's form; people see their own keyboard's names.
 
 function keyLabel(accelerator) {
-  if (!accelerator) return '없음';
+  if (!accelerator) return I18n.t('ui.scNone');
   return accelerator.replace('CommandOrControl', IS_MAC ? 'Cmd' : 'Ctrl').replace('Alt', IS_MAC ? 'Option' : 'Alt').replaceAll('+', ' + ');
 }
 
@@ -269,7 +274,7 @@ function setShortcut(field, accelerator) {
 document.querySelectorAll('.shortcut').forEach((field) => {
   field.addEventListener('focus', () => {
     field.classList.add('recording');
-    field.value = '키를 누르세요…';
+    field.value = I18n.t('ui.scPress');
   });
   field.addEventListener('blur', () => {
     field.classList.remove('recording');
@@ -293,7 +298,7 @@ document.querySelectorAll('.shortcut').forEach((field) => {
 
 async function drawMemories() {
   const list = await window.api.memories();
-  $('g-memories').innerHTML = list.length ? '' : '<li class="note">저장한 기억이 없습니다.</li>';
+  $('g-memories').innerHTML = list.length ? '' : `<li class="note">${esc(I18n.t('ui.noMemories'))}</li>`;
   for (const memory of list) {
     const item = document.createElement('li');
     const text = document.createElement('div');
@@ -302,7 +307,7 @@ async function drawMemories() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'ghost danger';
-    button.textContent = '삭제';
+    button.textContent = I18n.t('ui.delete');
     button.addEventListener('click', () => window.api.forgetId(memory.id));
     item.append(text, button);
     $('g-memories').append(item);
@@ -315,11 +320,12 @@ $('g-docs-pick').addEventListener('click', async () => {
   const picked = await window.api.pickDocsFolder();
   if (!picked) return;
   $('g-docs').value = picked.folder;
-  flash('g-status', `문서 ${picked.files}개를 읽었습니다.`);
+  flash('g-status', I18n.t('ui.docsRead', { n: picked.files }));
 });
 
 async function fillGeneral() {
-  $('g-persona').value = settings.persona;
+  $('g-language').value = settings.language;
+  $('g-persona').value = settings.persona || settings.defaultPersona;
   $('g-turns').value = settings.historyTurns;
   $('g-bubble').value = settings.character.bubbleSeconds;
   $('g-budget').value = settings.budgetUsd;
@@ -339,7 +345,7 @@ async function fillGeneral() {
   drawMemories();
   $('g-proactive').checked = settings.proactive;
   const status = await window.api.modelStatus();
-  $('g-dir').value = status.dir ?? '찾지 못함 — 폴더를 지정해 주세요';
+  $('g-dir').value = status.dir ?? I18n.t('ui.modelDirMissing');
 }
 
 $('general-form').addEventListener('submit', async (e) => {
@@ -366,8 +372,8 @@ $('general-form').addEventListener('submit', async (e) => {
   });
   settings = await window.api.getConfig();
   flash('g-status', failed.length
-    ? `등록 실패(다른 앱이 사용 중일 수 있음): ${failed.map((n) => SHORTCUT_NAMES[n]).join(', ')}`
-    : '저장했습니다.');
+    ? I18n.t('ui.scFailed', { names: failed.map((n) => I18n.t(SHORTCUT_KEYS[n])).join(', ') })
+    : I18n.t('ui.saved'));
 });
 
 $('g-pick').addEventListener('click', async () => {
@@ -387,7 +393,7 @@ let updateBusy = false;
 async function fillUpdate() {
   const info = await window.api.updateInfo();
   $('u-version').textContent = info.version ?? '';
-  $('u-commit').textContent = info.commit ? `${info.commit} · ${info.date}` : 'git으로 받은 폴더가 아니라서 앱에서 업데이트할 수 없습니다';
+  $('u-commit').textContent = info.commit ? `${info.commit} · ${info.date}` : I18n.t('ui.notGit');
   const pending = info.pending ?? [];
   $('u-list').replaceChildren(...pending.map((c) => {
     const li = document.createElement('li');
@@ -396,19 +402,19 @@ async function fillUpdate() {
   }));
   $('u-check').disabled = !info.installed || info.updating || updateBusy;
   $('u-apply').disabled = !pending.length || info.updating || updateBusy;
-  $('nav-update').textContent = pending.length ? `업데이트 (${pending.length})` : '업데이트';
+  $('nav-update').textContent = pending.length ? I18n.t('ui.navUpdateN', { n: pending.length }) : I18n.t('ui.navUpdate');
 }
 
 async function checkUpdate() {
   if (updateBusy) return;
   updateBusy = true;
-  $('u-status').textContent = '확인 중…';
+  $('u-status').textContent = I18n.t('ui.checking');
   try {
     await fillUpdate();
     const { installed, commits } = await window.api.checkUpdate();
-    $('u-status').textContent = !installed ? '' : commits.length ? `새 변경 ${commits.length}개가 있습니다.` : '최신 버전입니다.';
+    $('u-status').textContent = !installed ? '' : commits.length ? I18n.t('ui.newChanges', { n: commits.length }) : I18n.t('ui.upToDate');
   } catch (err) {
-    $('u-status').textContent = `확인하지 못했습니다: ${remoteError(err)}`;
+    $('u-status').textContent = I18n.t('ui.checkFailed', { error: remoteError(err) });
   } finally {
     updateBusy = false;
     await fillUpdate();
@@ -418,21 +424,60 @@ async function checkUpdate() {
 $('u-check').addEventListener('click', checkUpdate);
 $('u-apply').addEventListener('click', async () => {
   updateBusy = true;
-  $('u-status').textContent = '받는 중…';
+  $('u-status').textContent = I18n.t('ui.downloading');
   await fillUpdate();
   try {
     const { setup } = await window.api.applyUpdate();
     $('u-status').textContent = setup
-      ? `받았습니다. 앱을 종료하고 설치 스크립트(${IS_MAC ? 'setup-mac.command' : 'setup-windows.bat'})를 한 번 실행해 주세요.`
-      : '받았습니다. 다시 시작합니다…';
+      ? I18n.t('ui.rerunSetup', { script: IS_MAC ? 'setup-mac.command' : 'setup-windows.bat' })
+      : I18n.t('ui.restarting');
   } catch (err) {
-    $('u-status').textContent = `업데이트하지 못했습니다: ${remoteError(err)}`;
+    $('u-status').textContent = I18n.t('ui.updateFailed', { error: remoteError(err) });
   } finally {
     updateBusy = false;
     await fillUpdate();
   }
 });
 window.api.onUpdateChanged(() => fillUpdate());
+
+// -------------------------------------------------------------------- language
+
+$('g-language').innerHTML = Object.entries(I18n.LANGS).map(([code, name]) => `<option value="${code}">${esc(name)}</option>`).join('');
+
+// Switches at once, without Save. A persona still at its default follows the language.
+$('g-language').addEventListener('change', async () => {
+  const atDefault = $('g-persona').value === settings.defaultPersona;
+  settings = await window.api.setConfig({ language: $('g-language').value });
+  if (atDefault) $('g-persona').value = settings.defaultPersona;
+  if (settings.language !== shownLanguage) applyLanguage();
+});
+
+$('g-persona-reset').addEventListener('click', () => { $('g-persona').value = settings.defaultPersona; });
+
+// Redraws everything with text: the static page and the parts drawn from data.
+// The language the page is drawn in; the change event and the broadcast may come in
+// either order, so both compare against this.
+let shownLanguage = null;
+
+function applyLanguage() {
+  shownLanguage = settings.language;
+  I18n.setLang(settings.language);
+  I18n.apply();
+  drawPresets();
+  renderProfiles();
+  const editing = settings.profiles.find((p) => p.id === editingId);
+  if (editing) $('p-key').placeholder = I18n.t(editing.hasKey ? 'ui.keySaved' : 'ui.keyLocal');
+  ['s-input', 's-toggle', 's-sd', 's-quick', 's-voice'].forEach((id) => setShortcut($(id), $(id).dataset.accelerator));
+  drawMemories();
+  fillUpdate();
+  if (!$('dashboard').hidden) renderDashboard();
+  if (!$('log').hidden) refreshLog();
+}
+
+window.api.onConfigChanged(async () => {
+  settings = await window.api.getConfig();
+  if (settings.language !== shownLanguage) applyLanguage();
+});
 
 // ----------------------------------------------------------------------- start
 
@@ -442,6 +487,7 @@ showTab(new URLSearchParams(location.search).get('tab') || 'dashboard');
 
 (async () => {
   settings = await window.api.getConfig();
+  applyLanguage();
   const active = settings.profiles.find((p) => p.id === settings.activeProfileId) ?? settings.profiles[0];
   if (active) editProfile(active);
   else $('add-profile').click();

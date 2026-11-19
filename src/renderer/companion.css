@@ -131,7 +131,7 @@ body[data-mode="bust"] #stage { -webkit-mask-image: linear-gradient(to bottom, #
 /* Command mode must look nothing like chat: this text does not go to the API. */
 #input-bar.command { border-color: var(--command); background: var(--command-bg); }
 #input-bar.command::before {
-  content: '명령어'; flex: none; align-self: center; padding: 3px 7px; border-radius: 7px;
+  content: attr(data-badge); flex: none; align-self: center; padding: 3px 7px; border-radius: 7px;
   background: var(--command); color: #fff; font-size: 11px; font-weight: 700;
 }
 #input-bar.command #input { color: var(--command-text); font-weight: 600; }

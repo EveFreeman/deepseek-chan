@@ -357,26 +357,8 @@ const PRESETS = {
   ],
 };
 
-const EMOTION_LABELS = {
-  neutral: '기본', calm: '평온', happy: '기쁨', excited: '신남', laugh: '웃음', love: '애정', shy: '수줍음',
-  embarrassed: '부끄러움', proud: '뿌듯함', smug: '으쓱', teasing: '놀리기', playful: '장난', curious: '호기심',
-  attentive: '경청', question: '질문', thinking: '생각', explain: '설명', suggest: '제안', warning: '주의',
-  agree: '동의', disagree: '반대', trust: '믿음', determined: '결의', apology: '사과', thanks: '감사',
-  greeting: '인사', goodbye: '작별', welcome: '환영', tada: '짜잔', cheer: '응원', praise: '칭찬', comfort: '위로',
-  relief: '안도', sad: '슬픔', cry: '울음', angry: '화남', pout: '삐침', annoyed: '짜증', deadpan: '정색',
-  disgust: '질색', gloomy: '시무룩', surprised: '놀람', shocked: '충격', scared: '겁먹음', panic: '당황',
-  confused: '혼란', dunno: '모르겠음', awkward: '머쓱', tired: '피곤', sleepy: '졸림', hungry: '배고픔',
-  serious: '진지', blunder: '대실수',
-};
+// Labels for emotions and clips are in the locale files (emotions, clips).
 
-const CLIP_LABELS = {
-  stretch: '기지개', yawn: '하품', lookAround: '두리번',
-  nod: '끄덕', shake: '도리도리', tiltL: '갸웃', bow: '꾸벅', leanIn: '앞으로 기울이기', chinUp: '턱 들기', hop: '폴짝',
-  sway: '살랑', armsOpen: '팔 벌리기', armsWide: '활짝 벌리기', shrug: '으쓱', tailWag: '꼬리 흔들기', earFlap: '귀 파닥',
-  wink: '윙크', blep: '메롱', puff: '볼 부풀리기', sigh: '한숨', doze: '꾸벅꾸벅',
-  groove: '리듬 타기', sing: '노래', giggle: '킥킥', sneeze: '재채기', wiggle: '씰룩씰룩', shakeOff: '부르르',
-  kiss: '쪽', hopHop: '깡총깡총', peekaboo: '까꿍', startle: '화들짝',
-};
 
 // Rest poses from the model's own motion files. `hand` is the mesh switch for that
 // pose; without one the ordinary hand is lifted. Each arm holds one gesture, so both can run together.
@@ -411,48 +393,48 @@ function withProps(face, props) {
 // What the sentence itself suggests. `emotion` applies only when the model sent
 // no tag; `clip` and `prop` are added on top either way.
 const KEYWORDS = [
-  { re: /안녕|반가워|반갑|こんにちは|\bhello\b|\bhi\b/i, emotion: 'greeting' },
-  { re: /어서\s?와|환영/, emotion: 'welcome' },
-  { re: /믿어|맡겨|약속|제가 책임/, emotion: 'trust' },
-  { re: /짜잔|완성|완료했|다 됐/, emotion: 'tada' },
-  { re: /잘했|훌륭|멋져|대단해/, emotion: 'praise' },
-  { re: /다행|안심/, emotion: 'relief' },
-  { re: /조심|주의|위험|경고/, emotion: 'warning' },
-  { re: /어때요|추천|제안|해 보는 건/, emotion: 'suggest' },
+  { re: /안녕|반가워|반갑|こんにちは|你好|\bhello\b|\bhi\b/i, emotion: 'greeting' },
+  { re: /어서\s?와|환영|ようこそ|欢迎|\bwelcome\b/i, emotion: 'welcome' },
+  { re: /믿어|맡겨|약속|제가 책임|任せて|約束|交给我|相信我|\btrust me\b|\bleave it to me\b/i, emotion: 'trust' },
+  { re: /짜잔|완성|완료했|다 됐|じゃーん|完成|搞定|\bta-?da\b|\ball done\b/i, emotion: 'tada' },
+  { re: /잘했|훌륭|멋져|대단해|よくでき|えらい|做得好|真棒|\bwell done\b|\bgreat job\b/i, emotion: 'praise' },
+  { re: /다행|안심|よかった|安心|太好了|\bphew\b|\brelieved\b/i, emotion: 'relief' },
+  { re: /조심|주의|위험|경고|気をつけ|注意|危険|小心|危险|\bcareful\b|\bwarning\b/i, emotion: 'warning' },
+  { re: /어때요|추천|제안|해 보는 건|どうですか|おすすめ|建议|推荐|怎么样|\bhow about\b|\bi suggest\b/i, emotion: 'suggest' },
   { re: /말씀해|들려주|듣고 있|듣고 싶/, emotion: 'attentive' },
-  { re: /졸려|피곤해|잠이/, emotion: 'sleepy' },
+  { re: /졸려|피곤해|잠이|眠い|好困|\bsleepy\b/i, emotion: 'sleepy' },
   { re: /무서|겁나/, emotion: 'scared' },
-  { re: /배고파|배고프/, emotion: 'hungry' },
-  { re: /싸구려|싸다고|가성비/, emotion: 'pout' },
-  { re: /천재|당연하죠|제가 누군데/, emotion: 'proud' },
-  { re: /흰밥|쌀밥|밥 먹|밥 한 그릇|밀크티/, emotion: 'hungry' },
-  { re: /땡땡이|퇴근|자고 싶/, emotion: 'sleepy' },
-  { re: /잘못 올렸|가지 마세요|토큰이/, emotion: 'blunder' },
-  { re: /별로 안 기쁘|착각하지 마|오해하지 마/, emotion: 'shy' },
-  { re: /잘\s?가|다음에\s?봐|또\s?봐|안녕히|さようなら|\bbye\b/i, emotion: 'goodbye' },
-  { re: /고마워|고맙|감사|ありがと|\bthanks?\b/i, emotion: 'thanks' },
-  { re: /미안|죄송|ごめん|すみません|\bsorry\b/i, emotion: 'apology' },
-  { re: /축하|대박|최고|해냈|성공|すごい|\bcongrat/i, emotion: 'excited' },
-  { re: /힘내|화이팅|파이팅|할 수 있|頑張/, emotion: 'cheer' },
-  { re: /괜찮아요|걱정\s?마|힘들었|토닥/, emotion: 'comfort' },
-  { re: /ㅠ|ㅜ|슬퍼|슬프|속상|悲し/, emotion: 'sad' },
-  { re: /ㅋㅋ|ㅎㅎ|하하|헤헤|草|lol/i, emotion: 'laugh' },
-  { re: /사랑|좋아해|귀여|愛し|大好き/, emotion: 'love' },
-  { re: /놀라|깜짝|헉|어머|뭐라고요|えっ/, emotion: 'surprised' },
-  { re: /화나|짜증|그만\s?하|怒/, emotion: 'angry' },
-  { re: /모르겠|글쎄요/, emotion: 'dunno' },
-  { re: /음+[.…,]|흠+[.…,]|えーと/, emotion: 'thinking' },
-  { re: /왜냐하면|예를 들어|정리하면|즉,|먼저|첫째|설명/, emotion: 'explain' },
+  { re: /배고파|배고프|お腹すい|腹ぺこ|好饿|\bhungry\b/i, emotion: 'hungry' },
+  { re: /싸구려|싸다고|가성비|安物|廉价|\bcheap\b/i, emotion: 'pout' },
+  { re: /천재|당연하죠|제가 누군데|天才|\bgenius\b/i, emotion: 'proud' },
+  { re: /흰밥|쌀밥|밥 먹|밥 한 그릇|밀크티|白ごはん|ミルクティー|白米饭|奶茶|\bwhite rice\b|\bmilk tea\b/i, emotion: 'hungry' },
+  { re: /땡땡이|퇴근|자고 싶|サボ|摸鱼|\bslack off\b/i, emotion: 'sleepy' },
+  { re: /잘못 올렸|가지 마세요|토큰이|行かないで|别走|\bdon't leave\b/i, emotion: 'blunder' },
+  { re: /별로 안 기쁘|착각하지 마|오해하지 마|うれしくなんか|勘違いしない|才没有高兴|别误会|\bnot like i'm happy\b/i, emotion: 'shy' },
+  { re: /잘\s?가|다음에\s?봐|또\s?봐|안녕히|さようなら|またね|再见|拜拜|\bbye\b/i, emotion: 'goodbye' },
+  { re: /고마워|고맙|감사|ありがと|谢谢|感谢|\bthanks?\b|\bthank you\b/i, emotion: 'thanks' },
+  { re: /미안|죄송|ごめん|すみません|对不起|抱歉|\bsorry\b/i, emotion: 'apology' },
+  { re: /축하|대박|최고|해냈|성공|すごい|おめでと|恭喜|厉害|\bcongrat|\bawesome\b/i, emotion: 'excited' },
+  { re: /힘내|화이팅|파이팅|할 수 있|頑張|がんば|加油|\byou can do it\b/i, emotion: 'cheer' },
+  { re: /괜찮아요|걱정\s?마|힘들었|토닥|大丈夫|心配しない|没关系|别担心|\bit's okay\b|\bdon't worry\b/i, emotion: 'comfort' },
+  { re: /ㅠ|ㅜ|슬퍼|슬프|속상|悲し|难过|伤心|\bsad\b/i, emotion: 'sad' },
+  { re: /ㅋㅋ|ㅎㅎ|하하|헤헤|草|笑|哈哈|lol|\bhaha/i, emotion: 'laugh' },
+  { re: /사랑|좋아해|귀여|愛し|大好き|かわいい|喜欢你|可爱|\blove\b|\bcute\b/i, emotion: 'love' },
+  { re: /놀라|깜짝|헉|어머|뭐라고요|えっ|びっくり|什么？|吓|\bwhoa\b|\bwow\b/i, emotion: 'surprised' },
+  { re: /화나|짜증|그만\s?하|怒|生气|\bangry\b/i, emotion: 'angry' },
+  { re: /모르겠|글쎄요|わかりません|さあ|不知道|\bi don't know\b|\bno idea\b/i, emotion: 'dunno' },
+  { re: /음+[.…,]|흠+[.…,]|えーと|うーん|嗯+[.…,，]|\bhmm+/i, emotion: 'thinking' },
+  { re: /왜냐하면|예를 들어|정리하면|즉,|먼저|첫째|설명|例えば|つまり|まず|因为|例如|首先|\bfor example\b|\bfirst,|\bbecause\b/i, emotion: 'explain' },
   { re: /[!！]{1,}\s*$/, clip: 'bounce' },
   { re: /[?？]\s*$/, clip: 'tiltL' },
-  { re: /^\s*(네|예|응|그럼요|맞아요|좋아요|알겠|はい)/, clip: 'nod' },
-  { re: /^\s*(아니요|아뇨|아니에요|いいえ)/, clip: 'shake' },
-  { re: /윙크|비밀|쉿/, clip: 'wink' },
+  { re: /^\s*(네|예|응|그럼요|맞아요|좋아요|알겠|はい|うん|好的|是的|对|yes\b|sure\b|okay\b)/i, clip: 'nod' },
+  { re: /^\s*(아니요|아뇨|아니에요|いいえ|不是|不对|no\b|nope\b)/i, clip: 'shake' },
+  { re: /윙크|비밀|쉿|ないしょ|秘密|\bsecret\b/i, clip: 'wink' },
   { re: /메롱|장난/, clip: 'blep' },
-  { re: /꼬리|고래/, clip: 'tailWag' },
-  { re: /코드|분석|데이터|계산|논문/, prop: 'glasses' },
-  { re: /조사|추리|탐정/, prop: 'monocle' },
-  { re: /강아지풀/, prop: 'foxtail' },
+  { re: /꼬리|고래|しっぽ|クジラ|尾巴|鲸鱼|\bwhale\b|\btail\b/i, clip: 'tailWag' },
+  { re: /코드|분석|데이터|계산|논문|コード|分析|データ|代码|数据|论文|\bcode\b|\banalysis\b|\bdata\b/i, prop: 'glasses' },
+  { re: /조사|추리|탐정|調査|推理|探偵|调查|侦探|\bdetective\b|\binvestigat/i, prop: 'monocle' },
+  { re: /강아지풀|ねこじゃらし|狗尾草|\bfoxtail\b/i, prop: 'foxtail' },
 ];
 
 const EMOTIONS = Object.keys(PRESETS);
@@ -536,7 +518,7 @@ function pickPreset(emotion) {
 }
 
 const MOTION_API = {
-  CLIPS, PRESETS, GESTURES, HAND_MESHES, HELD, PROPS, EMOTIONS, ACTIONS, KNOWN_TAGS, EMOTION_LABELS, CLIP_LABELS, KEYWORDS,
+  CLIPS, PRESETS, GESTURES, HAND_MESHES, HELD, PROPS, EMOTIONS, ACTIONS, KNOWN_TAGS, KEYWORDS,
   resolveCue, pickPreset, pickIdleAct, stripTags, IDLE_ACTS, addProp, withProps,
 };
 if (typeof module !== 'undefined') module.exports = MOTION_API;

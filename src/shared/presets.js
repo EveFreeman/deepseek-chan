@@ -45,7 +45,7 @@ const PRESETS = [
   },
   {
     id: 'ollama',
-    label: 'Ollama (로컬)',
+    label: 'Ollama', local: true,
     name: 'Ollama',
     baseUrl: 'http://localhost:11434/v1',
     model: '',
@@ -55,7 +55,7 @@ const PRESETS = [
   },
   {
     id: 'lmstudio',
-    label: 'LM Studio (로컬)',
+    label: 'LM Studio', local: true,
     name: 'LM Studio',
     baseUrl: 'http://localhost:1234/v1',
     model: '',

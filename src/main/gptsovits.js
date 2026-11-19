@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { idleStopper } = require('./idle');
+const { t } = require('../shared/i18n');
 
 const HOST = '127.0.0.1';
 const PORT = 9880;
@@ -34,10 +35,10 @@ async function waitUntilUp() {
   const deadline = Date.now() + START_TIMEOUT;
   while (Date.now() < deadline) {
     if (await alive()) return;
-    if (!child) throw new Error(`GPT-SoVITS 서버가 종료되었습니다: ${log.slice(-300)}`);
+    if (!child) throw new Error(t('err.sovitsExited', { log: log.slice(-300) }));
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error('GPT-SoVITS 서버가 제시간에 시작되지 않았습니다.');
+  throw new Error(t('err.sovitsTimeout'));
 }
 
 // Only Macs use the GPU. On Windows CUDA was no faster than the CPU for these short
@@ -71,8 +72,8 @@ function pythonEnv(python) {
 }
 
 function launch({ dir, python, device: choice }) {
-  if (!dir || !fs.existsSync(path.join(dir, 'api_v2.py'))) throw new Error('GPT-SoVITS 폴더를 찾지 못했습니다. 설정 > 음성에서 지정해 주세요.');
-  if (!python || !fs.existsSync(python)) throw new Error('GPT-SoVITS가 설치되지 않았습니다. 설치 스크립트(setup)를 실행해 주세요.');
+  if (!dir || !fs.existsSync(path.join(dir, 'api_v2.py'))) throw new Error(t('err.sovitsNoDir'));
+  if (!python || !fs.existsSync(python)) throw new Error(t('err.sovitsMissing'));
   const device = detectDevice(choice);
   setDevice(dir, device);
   // Hiding CUDA keeps PyTorch from waking a powered-down GPU just to probe it.
@@ -110,7 +111,7 @@ function warm(config) {
 }
 
 async function request(text, lang, config) {
-  if (!config.refAudio || !fs.existsSync(config.refAudio)) throw new Error('참조 음성이 없습니다. voice 폴더에 つくよみちゃんコーパス를 넣어 주세요 (README 참고).');
+  if (!config.refAudio || !fs.existsSync(config.refAudio)) throw new Error(t('err.noRefVoice'));
   await ensureServer(config);
   const res = await fetch(`${BASE}/tts`, {
     method: 'POST',
@@ -129,7 +130,7 @@ async function request(text, lang, config) {
     }),
     signal: AbortSignal.timeout(120000),
   });
-  if (!res.ok) throw new Error(`GPT-SoVITS 오류 ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(t('err.sovits', { status: res.status, detail: (await res.text()).slice(0, 200) }));
   return { audio: normalize(Buffer.from(await res.arrayBuffer())), mime: 'audio/wav' };
 }
 

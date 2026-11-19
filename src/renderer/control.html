@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: dsc-model:; connect-src 'self' data: blob: dsc-model:; media-src blob:">
@@ -8,23 +8,23 @@
 </head>
 <body>
 <nav>
-  <button data-tab="dashboard">대시보드</button>
-  <button data-tab="log">대화 기록</button>
-  <button data-tab="connection">API 연결</button>
-  <button data-tab="voice">음성</button>
-  <button data-tab="character">일반</button>
-  <button data-tab="update" id="nav-update">업데이트</button>
+  <button data-tab="dashboard" data-i18n="ui.navDashboard"></button>
+  <button data-tab="log" data-i18n="ui.navLog"></button>
+  <button data-tab="connection" data-i18n="ui.navConnection"></button>
+  <button data-tab="voice" data-i18n="ui.navVoice"></button>
+  <button data-tab="character" data-i18n="ui.navGeneral"></button>
+  <button data-tab="update" id="nav-update"></button>
 </nav>
 <main>
 
 <section id="dashboard" hidden>
   <header class="row between">
-    <h1>사용량</h1>
+    <h1 data-i18n="ui.usage"></h1>
     <div class="row">
       <div class="segmented" id="range">
-        <button data-days="7">7일</button>
-        <button data-days="30">30일</button>
-        <button data-days="90">90일</button>
+        <button data-days="7" data-i18n="ui.days7"></button>
+        <button data-days="30" data-i18n="ui.days30"></button>
+        <button data-days="90" data-i18n="ui.days90"></button>
       </div>
       <div class="segmented" id="currency">
         <button data-cur="USD">USD</button>
@@ -37,38 +37,38 @@
     <div class="tiles" id="tiles"></div>
   </div>
   <div class="card">
-    <h2>일별 추산 비용</h2>
+    <h2 data-i18n="ui.dailyCost"></h2>
     <div id="legend" class="legend"></div>
     <div id="chart" class="chart"><div id="tooltip" hidden></div></div>
   </div>
   <div class="card">
-    <h2>API별 합계</h2>
+    <h2 data-i18n="ui.byApi"></h2>
     <table id="by-api"></table>
   </div>
   <div class="card">
-    <h2>최근 요청</h2>
+    <h2 data-i18n="ui.recent"></h2>
     <table id="recent"></table>
   </div>
-  <p class="note">비용은 요청 시점의 입력 단가로 계산한 추산치이며 실제 청구액과 다를 수 있습니다. "추정"으로 표시된 행은 서버가 토큰 수를 보내지 않아 글자 수로 어림한 값입니다.</p>
-  <button id="clear-usage" class="ghost danger">사용 기록 삭제</button>
+  <p class="note" data-i18n="ui.costNote"></p>
+  <button id="clear-usage" class="ghost danger" data-i18n="ui.clearUsage"></button>
 </section>
 
 <section id="log" hidden>
   <header class="log-head">
-    <h1>대화 기록</h1>
-    <input id="log-search" type="search" placeholder="대화 검색" aria-label="대화 검색">
+    <h1 data-i18n="ui.logTitle"></h1>
+    <input id="log-search" type="search" data-i18n-placeholder="ui.logSearch" data-i18n-aria="ui.logSearch">
     <span id="log-count" class="note"></span>
-    <button id="log-new" class="ghost">새 대화</button>
-    <button id="log-clear" class="ghost danger">전체 삭제</button>
+    <button id="log-new" class="ghost" data-i18n="ui.logNew"></button>
+    <button id="log-clear" class="ghost danger" data-i18n="ui.logClear"></button>
   </header>
   <div class="log-layout">
-    <ul id="log-sessions" aria-label="대화 세션"></ul>
+    <ul id="log-sessions" data-i18n-aria="ui.logSessions"></ul>
     <div class="log-main">
       <div class="log-session-bar">
         <b id="log-title"></b>
         <span id="log-session-meta" class="note"></span>
-        <button id="log-resume" class="ghost">이 대화 이어 가기</button>
-        <button id="log-delete" class="ghost danger">세션 삭제</button>
+        <button id="log-resume" class="ghost" data-i18n="ui.logResume"></button>
+        <button id="log-delete" class="ghost danger" data-i18n="ui.logDelete"></button>
       </div>
       <div id="log-list"></div>
     </div>
@@ -76,181 +76,188 @@
 </section>
 
 <section id="connection" hidden>
-  <h1>API 연결</h1>
-  <p class="note">OpenAI 호환 <code>/chat/completions</code> 형식이면 어떤 서비스든 연결할 수 있습니다. 선택한 연결이 대화에 쓰입니다.</p>
+  <h1 data-i18n="ui.connTitle"></h1>
+  <p class="note" data-i18n="ui.connNote"></p>
   <div class="split">
     <div>
       <ul id="profiles" class="list"></ul>
-      <button id="add-profile" class="ghost">+ 연결 추가</button>
+      <button id="add-profile" class="ghost" data-i18n="ui.addProfile"></button>
     </div>
     <form id="profile-form" class="card form">
-      <label>프리셋
+      <label><span data-i18n="ui.preset"></span>
         <select id="p-preset"></select>
       </label>
-      <label>이름 <input id="p-name" required></label>
+      <label><span data-i18n="ui.name"></span> <input id="p-name" required></label>
       <label>Base URL <input id="p-url" required placeholder="https://api.example.com/v1"></label>
-      <label>API 키 <input id="p-key" type="password" autocomplete="off"></label>
-      <label>모델
+      <label><span data-i18n="ui.apiKey"></span> <input id="p-key" type="password" autocomplete="off"></label>
+      <label><span data-i18n="ui.model"></span>
         <span class="row"><input id="p-model" list="p-models" required><datalist id="p-models"></datalist>
-        <button type="button" id="p-fetch" class="ghost">목록 불러오기</button></span>
+        <button type="button" id="p-fetch" class="ghost" data-i18n="ui.fetchModels"></button></span>
       </label>
-      <label>추가 파라미터 (JSON, 선택)
+      <label><span data-i18n="ui.extra"></span>
         <textarea id="p-extra" rows="2" spellcheck="false" placeholder='{"temperature": 0.7}'></textarea>
       </label>
       <fieldset>
-        <legend>단가 (USD / 100만 토큰)</legend>
+        <legend data-i18n="ui.pricing"></legend>
         <div class="row">
-          <label>입력 <input id="p-input" type="number" step="any" min="0"></label>
-          <label>캐시된 입력 <input id="p-cached" type="number" step="any" min="0"></label>
-          <label>출력 <input id="p-output" type="number" step="any" min="0"></label>
+          <label><span data-i18n="ui.priceInput"></span> <input id="p-input" type="number" step="any" min="0"></label>
+          <label><span data-i18n="ui.priceCached"></span> <input id="p-cached" type="number" step="any" min="0"></label>
+          <label><span data-i18n="ui.priceOutput"></span> <input id="p-output" type="number" step="any" min="0"></label>
         </div>
-        <label class="check"><input id="p-peak" type="checkbox"> 시간대 할증 사용</label>
+        <label class="check"><input id="p-peak" type="checkbox"> <span data-i18n="ui.peak"></span></label>
         <div class="row" id="p-peak-fields">
-          <label>배율 <input id="p-mult" type="number" step="any" min="1"></label>
-          <label>UTC 시간대 <input id="p-ranges" placeholder="01-04,06-10"></label>
-          <label class="check"><input id="p-weekdays" type="checkbox"> 평일만</label>
+          <label><span data-i18n="ui.multiplier"></span> <input id="p-mult" type="number" step="any" min="1"></label>
+          <label><span data-i18n="ui.utcHours"></span> <input id="p-ranges" placeholder="01-04,06-10"></label>
+          <label class="check"><input id="p-weekdays" type="checkbox"> <span data-i18n="ui.weekdays"></span></label>
         </div>
-        <a id="p-pricing" target="_blank" hidden>제공사 요금표 보기</a>
+        <a id="p-pricing" target="_blank" data-i18n="ui.pricingPage" hidden></a>
       </fieldset>
       <div class="row between">
-        <button type="button" id="p-delete" class="ghost danger">삭제</button>
-        <span class="row"><span id="p-status" class="note"></span><button type="submit">저장</button></span>
+        <button type="button" id="p-delete" class="ghost danger" data-i18n="ui.delete"></button>
+        <span class="row"><span id="p-status" class="note"></span><button type="submit" data-i18n="ui.save"></button></span>
       </div>
     </form>
   </div>
 </section>
 
 <section id="voice" hidden>
-  <h1>음성</h1>
+  <h1 data-i18n="ui.voiceTitle"></h1>
   <form id="voice-form" class="card form">
-    <label>엔진
+    <label><span data-i18n="ui.engine"></span>
       <select id="v-engine">
-        <option value="gptsovits">애니메풍 음성 (GPT-SoVITS, 로컬 서버)</option>
-        <option value="openai">외부 음성 API (OpenAI 호환)</option>
-        <option value="off">끄기</option>
+        <option value="gptsovits" data-i18n="ui.engineSovits"></option>
+        <option value="openai" data-i18n="ui.engineOpenai"></option>
+        <option value="off" data-i18n="ui.engineOff"></option>
       </select>
     </label>
     <div id="v-sovits">
-      <p class="note">첫 합성은 서버를 켜느라 오래 걸릴 수 있습니다. 참조 음성은 3~10초 길이의 깨끗한 음성이 좋습니다.</p>
-      <label>참조 음성 파일
-        <span class="row"><input id="g-ref" readonly><button type="button" id="g-ref-pick" class="ghost">선택</button></span>
+      <p class="note" data-i18n="ui.sovitsNote"></p>
+      <label><span data-i18n="ui.refAudio"></span>
+        <span class="row"><input id="g-ref" readonly><button type="button" id="g-ref-pick" class="ghost" data-i18n="ui.pick"></button></span>
       </label>
-      <label>참조 음성의 대사 <input id="g-ref-text"></label>
+      <label><span data-i18n="ui.refText"></span> <input id="g-ref-text"></label>
       <div class="row">
-        <label>속도 <input id="g-speed" type="number" min="0.6" max="1.6" step="0.05"></label>
-        <label id="g-device-row">실행 장치
+        <label><span data-i18n="ui.speed"></span> <input id="g-speed" type="number" min="0.6" max="1.6" step="0.05"></label>
+        <label id="g-device-row"><span data-i18n="ui.device"></span>
           <select id="g-device">
             <option value="auto">GPU (mps)</option>
             <option value="cpu">CPU</option>
           </select>
         </label>
       </div>
-      <label>GPT-SoVITS 폴더 <input id="g-sovits-dir"></label>
-      <label>Python 경로 <input id="g-python"></label>
+      <label><span data-i18n="ui.sovitsDir"></span> <input id="g-sovits-dir"></label>
+      <label><span data-i18n="ui.pythonPath"></span> <input id="g-python"></label>
     </div>
     <div id="v-openai">
       <label>Base URL <input id="v-url"></label>
-      <label>API 키 <input id="v-key" type="password" autocomplete="off"></label>
+      <label><span data-i18n="ui.apiKey"></span> <input id="v-key" type="password" autocomplete="off"></label>
       <div class="row">
-        <label>모델 <input id="v-model"></label>
-        <label>목소리 <input id="v-oai-voice"></label>
-        <label>단가 (USD / 100만 자) <input id="v-price" type="number" step="any" min="0"></label>
+        <label><span data-i18n="ui.voiceModel"></span> <input id="v-model"></label>
+        <label><span data-i18n="ui.voiceName"></span> <input id="v-oai-voice"></label>
+        <label><span data-i18n="ui.charPrice"></span> <input id="v-price" type="number" step="any" min="0"></label>
       </div>
     </div>
-    <label>쓰지 않으면 끄기 (분, 0은 항상 켜 둠) <input id="v-idle" type="number" min="0" max="240" step="1"></label>
-    <p class="note">음성 합성 서버와 음성 인식은 켜져 있는 동안 메모리를 수 GB 차지합니다. 이 시간 동안 쓰지 않으면 꺼 두고, 입력을 시작하거나 마이크를 켜면 미리 다시 켭니다.</p>
+    <label><span data-i18n="ui.idle"></span> <input id="v-idle" type="number" min="0" max="240" step="1"></label>
+    <p class="note" data-i18n="ui.idleNote"></p>
     <div class="row between">
-      <button type="button" id="v-test" class="ghost">들어보기</button>
-      <span class="row"><span id="v-status" class="note"></span><button type="submit">저장</button></span>
+      <button type="button" id="v-test" class="ghost" data-i18n="ui.test"></button>
+      <span class="row"><span id="v-status" class="note"></span><button type="submit" data-i18n="ui.save"></button></span>
     </div>
   </form>
 </section>
 
 <section id="character" hidden>
-  <h1>일반</h1>
+  <h1 data-i18n="ui.generalTitle"></h1>
   <form id="general-form" class="card form">
-    <label>캐릭터 성격 (시스템 프롬프트)
-      <textarea id="g-persona" rows="14"></textarea>
+    <label><span data-i18n="ui.language"></span>
+      <select id="g-language"></select>
     </label>
+    <div class="row between"><span><span data-i18n="ui.persona"></span></span><button type="button" id="g-persona-reset" class="ghost" data-i18n="ui.personaReset"></button></div>
+    <textarea id="g-persona" rows="14" data-i18n-aria="ui.persona"></textarea>
     <div class="row">
-      <label>기억할 대화 턴 수 <input id="g-turns" type="number" min="0" max="100"></label>
-      <label>말풍선 유지 시간 (초) <input id="g-bubble" type="number" min="1" max="120"></label>
-      <label>월 예산 (USD, 0은 끔) <input id="g-budget" type="number" step="any" min="0"></label>
-      <label>원/달러 환율 <input id="g-krw" type="number" min="1"></label>
+      <label><span data-i18n="ui.turns"></span> <input id="g-turns" type="number" min="0" max="100"></label>
+      <label><span data-i18n="ui.bubble"></span> <input id="g-bubble" type="number" min="1" max="120"></label>
+      <label><span data-i18n="ui.budget"></span> <input id="g-budget" type="number" step="any" min="0"></label>
+      <label><span data-i18n="ui.krw"></span> <input id="g-krw" type="number" min="1"></label>
     </div>
-    <label class="check"><input id="g-search" type="checkbox"> 웹 검색 사용 (DeepSeek Search, 1,000회당 $0.75)</label>
-    <label class="check"><input id="g-proactive" type="checkbox"> 먼저 말 걸기 (시간대 인사, 매 정시 시간 알림)</label>
-    <p class="note">DeepSeek 키가 저장된 연결이 있어야 동작합니다. 검색하면 답변 한 번에 모델을 여러 번 호출해 토큰도 더 듭니다.</p>
+    <label class="check"><input id="g-search" type="checkbox"> <span data-i18n="ui.webSearch"></span></label>
+    <label class="check"><input id="g-proactive" type="checkbox"> <span data-i18n="ui.proactive"></span></label>
+    <p class="note" data-i18n="ui.webNote"></p>
     <fieldset>
-      <legend>전역 단축키</legend>
-      <p class="note">칸을 누르고 키 조합을 입력하세요. Backspace는 지우기, Esc는 취소입니다.</p>
+      <legend data-i18n="ui.shortcuts"></legend>
+      <p class="note" data-i18n="ui.shortcutsNote"></p>
       <div class="shortcut-list">
-        <label>입력창 열기 <input id="s-input" class="shortcut" readonly></label>
-        <label>보이기 / 숨기기 <input id="s-toggle" class="shortcut" readonly></label>
-        <label>SD 모드 전환 <input id="s-sd" class="shortcut" readonly></label>
-        <label>선택한 글 처리 <input id="s-quick" class="shortcut" readonly></label>
-        <label>음성 입력 <input id="s-voice" class="shortcut" readonly></label>
+        <label><span data-i18n="ui.scInput"></span> <input id="s-input" class="shortcut" readonly></label>
+        <label><span data-i18n="ui.scToggle"></span> <input id="s-toggle" class="shortcut" readonly></label>
+        <label><span data-i18n="ui.scSd"></span> <input id="s-sd" class="shortcut" readonly></label>
+        <label><span data-i18n="ui.scQuick"></span> <input id="s-quick" class="shortcut" readonly></label>
+        <label><span data-i18n="ui.scVoice"></span> <input id="s-voice" class="shortcut" readonly></label>
       </div>
     </fieldset>
-    <label class="check"><input id="g-block" type="checkbox"> 월 예산을 넘으면 요청 막기 (/강행 으로 이번만 보낼 수 있음)</label>
-    <label>깊게 생각할 때 추론 강도 (/깊게)
+    <label class="check"><input id="g-block" type="checkbox"> <span data-i18n="ui.budgetBlock" data-i18n-cmd="강행"></span></label>
+    <label><span data-i18n="ui.deepEffort" data-i18n-cmd="깊게"></span>
       <select id="g-effort">
         <option value="high">High</option>
-        <option value="max">Max (가장 깊게, 토큰이 더 듭니다)</option>
+        <option value="max" data-i18n="ui.effortMax"></option>
       </select>
     </label>
-    <label>문서 폴더 (/문서, 찾은 부분만 API로 전송)
-      <span class="row"><input id="g-docs" readonly><button type="button" id="g-docs-pick" class="ghost">선택</button></span>
+    <label><span data-i18n="ui.docsFolder" data-i18n-cmd="문서"></span>
+      <span class="row"><input id="g-docs" readonly><button type="button" id="g-docs-pick" class="ghost" data-i18n="ui.pick"></button></span>
     </label>
     <fieldset>
-      <legend>아침 브리핑</legend>
-      <label class="check"><input id="g-brief-auto" type="checkbox"> 하루 첫 실행 때 자동으로 듣기 (요금 발생)</label>
-      <label>찾아볼 주제 (쉼표로 구분, 비우면 검색 안 함) <input id="g-brief-topics" placeholder="AI 뉴스, 서울 날씨"></label>
+      <legend data-i18n="ui.briefing"></legend>
+      <label class="check"><input id="g-brief-auto" type="checkbox"> <span data-i18n="ui.briefAuto"></span></label>
+      <label><span data-i18n="ui.briefTopics"></span> <input id="g-brief-topics" data-i18n-placeholder="ui.briefTopicsHint"></label>
     </fieldset>
     <fieldset>
-      <legend>장기 기억 (/기억해 로 추가)</legend>
+      <legend data-i18n="ui.memory" data-i18n-cmd="기억해"></legend>
       <ul id="g-memories" class="list"></ul>
     </fieldset>
-    <label>추가 지침 (매 요청마다 함께 보냅니다)
-      <textarea id="g-instructions" rows="5" placeholder="예: 사용자의 이름은 민준이다. 답변은 짧게 한다."></textarea>
+    <label><span data-i18n="ui.instructions"></span>
+      <textarea id="g-instructions" rows="5" data-i18n-placeholder="ui.instructionsHint"></textarea>
     </label>
-    <label>Live2D 모델 폴더
-      <span class="row"><input id="g-dir" readonly><button type="button" id="g-pick" class="ghost">변경</button></span>
+    <label><span data-i18n="ui.modelDir"></span>
+      <span class="row"><input id="g-dir" readonly><button type="button" id="g-pick" class="ghost" data-i18n="ui.change"></button></span>
     </label>
     <div class="row between">
       <span></span>
-      <span class="row"><span id="g-status" class="note"></span><button type="submit">저장</button></span>
+      <span class="row"><span id="g-status" class="note"></span><button type="submit" data-i18n="ui.save"></button></span>
     </div>
   </form>
 </section>
 
 <section id="update" hidden>
-  <h1>업데이트</h1>
+  <h1 data-i18n="ui.updateTitle"></h1>
   <div class="card form">
-    <p class="version">현재 버전 <strong id="u-version"></strong> <span id="u-commit" class="note"></span></p>
+    <p class="version"><span data-i18n="ui.version"></span> <strong id="u-version"></strong> <span id="u-commit" class="note"></span></p>
     <div class="row">
-      <button type="button" id="u-check" class="ghost">업데이트 확인</button>
-      <button type="button" id="u-apply" disabled>다운로드하고 다시 시작</button>
+      <button type="button" id="u-check" class="ghost" data-i18n="ui.check"></button>
+      <button type="button" id="u-apply" data-i18n="ui.apply" disabled></button>
       <span id="u-status" class="note"></span>
     </div>
     <ul id="u-list" class="list"></ul>
-    <p class="note">GitHub에서 새 버전을 받아 앱을 다시 시작합니다. 설정, 키, 대화 기록은 그대로 남습니다. 음성 엔진이나 Electron이 바뀐 버전은 받은 뒤 설치 스크립트를 한 번 다시 실행해야 합니다. 앱은 켜질 때와 6시간마다 새 버전을 확인합니다.</p>
+    <p class="note" data-i18n="ui.updateNote"></p>
   </div>
-  <h1>만든 사람들</h1>
+  <h1 data-i18n="ui.credits"></h1>
   <div class="card form">
-    <p><strong>DeepSeek-chan Live2D 모델</strong><br>
-      일러스트·PSD 레이어 분리: Kamiya Ryoko / Live2D 리깅: 霓虹猫_NeonNeko<br>
-      <a href="https://vgen.co/KAMIYA/product/deepseek-chan-deepseek-free-live2d-model-layered-psd-psd/1c55a71a-2747-4616-819d-2dc0a934089d" target="_blank">배포 페이지 (VGen)</a></p>
-    <p><strong>음성</strong><br>
-      음성 합성에는 프리 소재 캐릭터 「つくよみちゃん」이 무료 공개한 음성 데이터를 사용합니다.<br>
+    <p><strong data-i18n="ui.creditModel"></strong><br>
+      <span data-i18n="ui.creditModelBy"></span><br>
+      <a href="https://vgen.co/KAMIYA/product/deepseek-chan-deepseek-free-live2d-model-layered-psd-psd/1c55a71a-2747-4616-819d-2dc0a934089d" target="_blank" data-i18n="ui.creditModelPage"></a></p>
+    <p><strong data-i18n="ui.creditVoice"></strong><br>
+      <span data-i18n="ui.creditVoiceText"></span><br>
       ■つくよみちゃんコーパス（CV.夢前黎） <a href="https://tyc.rei-yumesaki.net/material/corpus/" target="_blank">https://tyc.rei-yumesaki.net/material/corpus/</a></p>
-    <p><strong>엔진</strong><br>
+    <p><strong data-i18n="ui.creditEngines"></strong><br>
       <a href="https://github.com/RVC-Boss/GPT-SoVITS" target="_blank">GPT-SoVITS</a>, <a href="https://www.live2d.com/" target="_blank">Live2D Cubism Core</a>, <a href="https://github.com/guansss/pixi-live2d-display" target="_blank">pixi-live2d-display</a>, Electron</p>
-    <p class="note">모델과 음성은 각 배포처의 이용 규약을 따릅니다. 이 앱은 그 파일을 포함하거나 재배포하지 않습니다.</p>
+    <p class="note" data-i18n="ui.creditNote"></p>
   </div>
 </section>
 
 </main>
+<script src="../shared/locales/en.js"></script>
+<script src="../shared/locales/ko.js"></script>
+<script src="../shared/locales/ja.js"></script>
+<script src="../shared/locales/zh.js"></script>
+<script src="../shared/i18n.js"></script>
 <script src="../shared/presets.js"></script>
 <script src="dashboard.js"></script>
 <script src="log.js"></script>

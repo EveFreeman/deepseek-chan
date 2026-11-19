@@ -16,6 +16,7 @@ const input = document.getElementById('input');
 
 let character;
 let config;
+const { t } = I18n;
 let bubbleTimer = null;
 let idleTimer = null;
 let streaming = false;
@@ -151,7 +152,7 @@ let voiceWarned = false;
 function reportVoiceError(message) {
   if (voiceWarned) return;
   voiceWarned = true;
-  setFoot([{ warn: `⚠ 음성을 낼 수 없어요: ${errorText({ message })}` }]);
+  setFoot([{ warn: t('chat.voiceFail', { error: errorText({ message }) }) }]);
 }
 
 function trackMouth(source) {
@@ -203,7 +204,7 @@ function send(text, force = webMode ? 'search' : null, options = {}) {
   character.listen(false);
   speech.parser = makeParser();
   character.thinking();
-  showBubble('생각 중…', 'thinking');
+  showBubble(t('chat.thinking'), 'thinking');
   window.api.send(text, { force, ...options });
 }
 
@@ -231,10 +232,10 @@ function setFoot(lines) {
 
 function showReport({ sources = [], suspicious = 0, blocked = 0, budget = null, deep = null }) {
   const lines = voiceWarned ? [...bubbleFoot.children].map((row) => (row.className === 'warn' ? { warn: row.textContent } : row.textContent)) : [];
-  if (deep) lines.push(`깊게 생각함 (${deep})`);
-  if (sources.length) lines.push(`출처: ${[...new Set(sources.map((s) => s.host))].join(', ')}`);
-  if (suspicious) lines.push({ warn: `⚠ 가져온 자료의 수상한 지시 ${suspicious}건을 제거했어요` });
-  if (blocked) lines.push({ warn: `⚠ 허용되지 않은 요청 ${blocked}건을 막았어요` });
+  if (deep) lines.push(t('chat.deep', { effort: deep }));
+  if (sources.length) lines.push(t('chat.sources', { hosts: [...new Set(sources.map((s) => s.host))].join(', ') }));
+  if (suspicious) lines.push({ warn: t('chat.suspicious', { n: suspicious }) });
+  if (blocked) lines.push({ warn: t('chat.blocked', { n: blocked }) });
   if (budget) lines.push({ warn: `⚠ ${budget}` });
   setFoot(lines);
 }
@@ -351,14 +352,14 @@ let paletteRows = [];
 let paletteIndex = 0;
 
 function optionsFor(kind) {
-  if (kind === 'emotions') return Object.entries(Motions.EMOTION_LABELS).map(([value, label]) => ({ value, label }));
-  if (kind === 'clips') return Object.entries(Motions.CLIP_LABELS).map(([value, label]) => ({ value, label }));
+  if (kind === 'emotions') return Object.entries(I18n.raw('emotions')).map(([value, label]) => ({ value, label }));
+  if (kind === 'clips') return Object.entries(I18n.raw('clips')).map(([value, label]) => ({ value, label }));
   return config.profiles.map((p) => ({ value: p.id, label: p.name }));
 }
 
 // Rows for the palette: commands, or a command's choices once it is typed.
 function paletteFor(text) {
-  if (quickText && !text.trim()) return QUICK_ACTIONS.map(([title, prompt]) => ({ title, action: () => runQuick(prompt) }));
+  if (quickText && !text.trim()) return QUICK_ACTIONS.map(([title, prompt]) => ({ title: t(title), action: () => runQuick(t(prompt)) }));
   const parsed = Commands.parse(text);
   if (!parsed) return [];
   const command = parsed.typingArg ? Commands.resolve(parsed.word) : null;
@@ -366,14 +367,13 @@ function paletteFor(text) {
     const word = parsed.arg.toLowerCase();
     return optionsFor(command.options)
       .filter((o) => o.label.toLowerCase().includes(word) || o.value.toLowerCase().includes(word))
-      .map((o) => ({ title: o.label, fill: `/${command.name} ${o.value}`, run: true }));
+      .map((o) => ({ title: o.label, fill: `/${Commands.label(command)} ${o.value}`, run: true }));
   }
-  return Commands.suggest(text).map((c) => ({
-    title: `/${c.name}${c.args ? ` ${c.args}` : ''}`,
-    detail: c.hint,
-    fill: `/${c.name}${c.args ? ' ' : ''}`,
-    run: !c.args,
-  }));
+  return Commands.suggest(text).map((c) => {
+    const name = Commands.label(c);
+    const args = Commands.args(c);
+    return { title: `/${name}${args ? ` ${args}` : ''}`, detail: Commands.hint(c), fill: `/${name}${args ? ' ' : ''}`, run: !args };
+  });
 }
 
 function refreshPalette() {
@@ -418,14 +418,15 @@ function choosePalette(row) {
 // Selected text waits here until an action is chosen; typing asks about it freely.
 let quickText = '';
 
+// [label key, prompt key] for selected text.
 const QUICK_ACTIONS = [
-  ['번역', '다음 글을 번역해 줘. 한국어면 영어로, 그 외의 언어면 한국어로. 번역문만 말해.'],
-  ['요약', '다음 글을 핵심만 세 줄로 요약해 줘.'],
-  ['쉽게 설명', '다음 글을 쉽게 풀어서 설명해 줘.'],
-  ['다듬기', '다음 글을 자연스럽게 다듬어 줘. 다듬은 글만 말해.'],
+  ['quick.translate', 'prompt.translate'],
+  ['quick.summary', 'quick.summaryPrompt'],
+  ['quick.explain', 'quick.explainPrompt'],
+  ['quick.polish', 'quick.polishPrompt'],
 ];
 
-const withSelection = (ask, text) => `${ask}\n\n선택한 글:\n${text}`;
+const withSelection = (ask, text) => t('quick.withSelection', { ask, text });
 
 function runQuick(prompt) {
   const text = quickText;
@@ -438,13 +439,13 @@ function runQuick(prompt) {
 window.api.onQuick(({ text, fromClipboard, pressed }) => {
   if (!text) {
     say(pressed
-      ? '선택한 글을 찾지 못했어요. 글을 선택한 뒤 다시 눌러 주세요.'
-      : '글을 읽을 권한이 없어요. 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Electron을 허용해 주세요.', 'error');
+      ? t('quick.notFound')
+      : t('quick.noPermission'), 'error');
     return;
   }
   quickText = text;
   const preview = text.length > 60 ? `${text.slice(0, 60)}…` : text;
-  say(`${fromClipboard ? '복사된 글' : '선택한 글'}: "${preview}"\n어떻게 할까요? 직접 물어봐도 돼요.`);
+  say(t('quick.offer', { source: t(fromClipboard ? 'quick.copied' : 'quick.selected'), preview }));
   input.value = '';
   refreshPalette();
 });
@@ -487,14 +488,14 @@ function drawTray(items) {
   if (webMode) {
     const mode = document.createElement('div');
     mode.className = 'chip mode';
-    mode.textContent = '웹검색 켜짐';
-    mode.append(removeButton('웹검색 끄기', () => setWebMode(false)));
+    mode.textContent = t('web.chip');
+    mode.append(removeButton(t('web.off'), () => setWebMode(false)));
     chips.push(mode);
   }
   for (const item of items) {
     const chip = document.createElement('div');
     chip.className = item.hold ? 'chip hold' : 'chip';
-    chip.title = `${item.name}\n${item.hold ? '클릭하면 Hold 해제' : '클릭하면 Hold: 보낸 뒤에도 유지'}`;
+    chip.title = `${item.name}\n${t(item.hold ? 'attach.holdOff' : 'attach.holdOn')}`;
     chip.tabIndex = 0;
     chip.setAttribute('role', 'button');
     chip.setAttribute('aria-pressed', String(item.hold));
@@ -518,7 +519,7 @@ function drawTray(items) {
     const name = document.createElement('div');
     name.className = 'name';
     name.textContent = item.name;
-    chip.append(name, removeButton(`${item.name} 빼기`, async () => {
+    chip.append(name, removeButton(t('attach.remove', { name: item.name }), async () => {
       setAttached(await window.api.removeAttachment(item.id));
     }));
     if (item.hold) {
@@ -609,12 +610,12 @@ function setAttached(items) {
 
 async function setWebMode(on) {
   if (on && !(await window.api.searchAvailable())) {
-    say('웹 검색을 쓰려면 DeepSeek 키가 저장된 연결이 필요하고, 설정에서 웹 검색이 켜져 있어야 해요.', 'error');
+    say(t('web.needKey'), 'error');
     return;
   }
   webMode = on;
   drawTray(attachedItems);
-  say(on ? '웹검색 모드를 켰어요. 이제 질문은 꼭 찾아보고 답할게요.' : '웹검색 모드를 껐어요.');
+  say(t(on ? 'web.on' : 'web.offSaid'));
 }
 
 const errorText = (err) => err.message.replace(/^Error invoking remote method '.*?': (Error: )?/, '');
@@ -623,7 +624,7 @@ const errorText = (err) => err.message.replace(/^Error invoking remote method '.
 let confirmDone = null;
 
 function askConfirm({ preview, provider }) {
-  document.getElementById('confirm-text').textContent = `이 화면을 ${provider}(으)로 보낼까요? 화면에 민감한 내용이 없는지 확인해 주세요.`;
+  document.getElementById('confirm-text').textContent = t('screen.confirm', { provider });
   document.getElementById('confirm-image').src = preview;
   confirmBox.hidden = false;
   document.getElementById('confirm-no').focus();
@@ -644,10 +645,10 @@ async function shareScreen(question) {
   const wasOpen = !inputBar.hidden;
   const accepted = await askConfirm(await window.api.captureScreen());
   setAttached(await window.api.confirmScreen(accepted));
-  if (!accepted) return say('화면을 보내지 않았어요.');
+  if (!accepted) return say(t('screen.notSent'));
   if (question) send(question);
   else {
-    say('화면을 첨부했어요. 무엇이 궁금하세요?');
+    say(t('screen.attached'));
     if (!wasOpen) openInput();
     else input.focus();
   }
@@ -659,26 +660,25 @@ async function showUsage() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
   const total = (since) => records.filter((r) => r.ts >= since).reduce((sum, r) => sum + (r.cost ?? 0), 0);
   const asks = records.filter((r) => r.ts >= dayStart && r.kind === 'chat').length;
-  say(`오늘 $${total(dayStart).toFixed(4)} (${asks}회), 이번 달 $${total(monthStart).toFixed(4)} 썼어요.`);
+  say(t('chat.usage', { today: total(dayStart).toFixed(4), asks, month: total(monthStart).toFixed(4) }));
 }
 
-const showHelp = () => say(Commands.HELP_TEXT);
+const showHelp = () => say(Commands.helpText());
 
-const translatePrompt = (text) => `다음 글을 번역해 줘. 한국어면 영어로, 그 외의 언어면 한국어로. 번역문만 말해.\n\n${text}`;
+const translatePrompt = (text) => `${t('prompt.translate')}\n\n${text}`;
 
-const formatWhen = (at) => new Date(at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const formatWhen = (at) => new Date(at).toLocaleString(I18n.dateLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 // ------------------------------------------------------------------- pet & briefing
 
-const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
 async function feed() {
   const { wasFull } = await window.api.feed();
   hungry = false;
   placeFood();
   announce(wasFull
-    ? { text: '우으… 더는 못 먹어요. 그래도 남기진 않을 거예요.', tags: ['tired', 'sigh'] }
-    : { text: pick(['흰쌀밥이다! 잘 먹겠습니다!', '역시 주인님은 뭘 좀 아시네요!', '이게 바로 토큰보다 좋은 거예요.', '배불러요. 이제 일할 맛 나네요!']), tags: ['excited', 'hop'] });
+    ? { text: t('pet.full'), tags: ['tired', 'sigh'] }
+    : { text: I18n.pick('pet.fed'), tags: ['excited', 'hop'] });
 }
 
 // The rice-bowl bubble: shown beside her head while she is hungry and nothing else is
@@ -713,20 +713,20 @@ new MutationObserver(() => placeFood()).observe(bubble, { attributes: true, attr
 async function pat() {
   await window.api.pat();
   announce({
-    text: pick(['흐, 흥. 별로 안 기쁘거든요?', '거기 말고… 아니, 거기 맞아요.', '착각하지 마세요, 잠깐 허락한 거예요.', '에헤헤… 아, 방금 건 못 들은 걸로 해요.']),
+    text: I18n.pick('pet.pat'),
     tags: ['shy', 'tailWag'],
   });
 }
 
 async function briefing() {
   const { topics, cost, requests, reminders } = await window.api.briefingData();
-  const today = new Date().toLocaleDateString('ko-KR', { dateStyle: 'full' });
-  const plans = reminders.map((r) => `${formatWhen(r.at)} ${r.text}`).join(', ') || '없음';
-  const facts = `오늘은 ${today}. 어제 사용량은 ${requests}회에 $${cost.toFixed(4)}. 예약된 알림: ${plans}.`;
+  const today = new Date().toLocaleDateString(I18n.dateLocale(), { dateStyle: 'full' });
+  const plans = reminders.map((r) => `${formatWhen(r.at)} ${r.text || t('reminder.fallback')}`).join(', ') || t('prompt.none');
+  const facts = t('prompt.briefFacts', { today, requests, cost: cost.toFixed(4), plans });
   const canSearch = topics.trim() && (await window.api.searchAvailable());
   const ask = canSearch
-    ? `아침 브리핑을 해 줘. ${facts} 다음 주제의 오늘 소식을 웹에서 찾아 주제마다 한 문장으로 알려 줘: ${topics}`
-    : `아침 브리핑을 해 줘. ${facts} 세 문장 안으로 말해 줘.`;
+    ? t('prompt.briefSearch', { facts, topics })
+    : t('prompt.briefPlain', { facts });
   send(ask, canSearch ? 'search' : null);
 }
 
@@ -761,12 +761,12 @@ async function startVoice() {
     micButton.classList.remove('recording');
     stream.getTracks().forEach((track) => track.stop());
     context.close();
-    if (!heard) return say('아무 말도 안 들렸어요.');
-    showBubble('알아듣는 중…', 'thinking');
+    if (!heard) return say(t('voice.nothing'));
+    showBubble(t('voice.recognizing'), 'thinking');
     try {
       const text = await window.api.transcribe(await new Blob(chunks).arrayBuffer());
       if (text) send(text);
-      else say('무슨 말인지 못 알아들었어요.');
+      else say(t('voice.unclear'));
     } catch (err) {
       say(errorText(err), 'error');
     }
@@ -776,7 +776,7 @@ async function startVoice() {
   window.api.warmVoice();
   micButton.classList.add('recording');
   character.listen(true);
-  showBubble('듣고 있어요…', 'thinking');
+  showBubble(t('voice.listening'), 'thinking');
 
   const watch = () => {
     if (!recorder) return;
@@ -799,7 +799,7 @@ async function toggleVoice() {
     else await startVoice();
   } catch (err) {
     micButton.classList.remove('recording');
-    say(`마이크를 쓸 수 없어요: ${errorText(err)}`, 'error');
+    say(t('voice.micFail', { error: errorText(err) }), 'error');
   }
 }
 
@@ -808,92 +808,92 @@ window.api.onVoice(toggleVoice);
 
 const COMMAND_RUNNERS = {
   웹검색: () => setWebMode(!webMode),
-  검색: (arg) => (arg ? send(arg, 'search') : say('/검색 뒤에 질문을 적어 주세요.')),
+  검색: (arg) => (arg ? send(arg, 'search') : say(t('said.needQuestion', { cmd: Commands.slash('검색') }))),
   읽기: (arg) => {
     const [url, ...rest] = arg.split(/\s+/);
-    if (!/^https?:\/\//.test(url)) return say('/읽기 뒤에 https로 시작하는 주소를 적어 주세요.');
-    return send(`${url}\n${rest.join(' ') || '이 페이지의 핵심을 짧게 알려 줘.'}`, 'fetch');
+    if (!/^https?:\/\//.test(url)) return say(t('said.needUrl', { cmd: Commands.slash('읽기') }));
+    return send(`${url}\n${rest.join(' ') || t('prompt.readDefault')}`, 'fetch');
   },
   첨부파일: attachFiles,
   첨부해제: async () => {
     setAttached(await window.api.clearAttachments());
-    say('첨부를 모두 뺐어요.');
+    say(t('attach.cleared'));
   },
   알림: async (arg) => {
     if (!arg) {
       const list = await window.api.listReminders();
       return say(list.length
-        ? list.map((r) => `${formatWhen(r.at)} ${r.text}`).join('\n')
-        : '예약된 알림이 없어요. /알림 30분 뒤 회의 처럼 적어 주세요.');
+        ? list.map((r) => `${formatWhen(r.at)} ${r.text || t('reminder.fallback')}`).join('\n')
+        : t('reminder.none'));
     }
     const found = Reminders.parseReminder(arg, Date.now(), true);
-    if (!found) return say('언제 알려 드릴까요? /알림 30분 뒤 회의, /알림 오후 3시 반 약 처럼 적어 주세요.');
+    if (!found) return say(t('reminder.how'));
     await window.api.addReminder(found.at, found.text);
-    return say(`${formatWhen(found.at)}에 "${found.text}" 알려 드릴게요.`);
+    return say(t('reminder.set', { when: formatWhen(found.at), text: found.text || t('reminder.fallback') }));
   },
   알림취소: async () => {
     await window.api.clearReminders();
-    say('알림을 모두 지웠어요.');
+    say(t('reminder.cleared'));
   },
   음성: () => toggleVoice(),
   기억해: async (arg) => {
-    if (!arg) return say('/기억해 뒤에 내용을 적어 주세요.');
+    if (!arg) return say(t('said.needMemory', { cmd: Commands.slash('기억해') }));
     await window.api.remember(arg);
-    return say(`기억할게요: ${arg}`);
+    return say(t('said.remembered', { text: arg }));
   },
   기억목록: async () => {
     const list = await window.api.memories();
-    say(list.length ? list.map((m, i) => `${i + 1}. ${m.text}`).join('\n') : '저장한 기억이 없어요. /기억해 내용 으로 알려 주세요.');
+    say(list.length ? list.map((m, i) => `${i + 1}. ${m.text}`).join('\n') : t('said.noMemories', { cmd: Commands.slash('기억해') }));
   },
-  잊어: async (arg) => say((await window.api.forget(Number(arg) - 1)) ? `${arg}번 기억을 지웠어요.` : '/기억목록 의 번호를 적어 주세요.'),
-  문서: (arg) => (arg ? send(arg, 'docs') : say('/문서 뒤에 질문을 적어 주세요.')),
+  잊어: async (arg) => say((await window.api.forget(Number(arg) - 1)) ? t('said.forgot', { n: arg }) : t('said.forgetHow', { cmd: Commands.slash('기억목록') })),
+  문서: (arg) => (arg ? send(arg, 'docs') : say(t('said.needQuestion', { cmd: Commands.slash('문서') }))),
   문서갱신: async () => {
     const { files, chunks } = await window.api.rebuildDocs();
-    say(`문서 ${files}개를 읽었어요 (${chunks}조각).`);
+    say(t('said.docsRead', { files, chunks }));
   },
-  깊게: (arg) => (arg ? send(arg, webMode ? 'search' : null, { deep: true }) : say('/깊게 뒤에 질문을 적어 주세요.')),
-  강행: (arg) => (arg ? send(arg, webMode ? 'search' : null, { overBudget: true }) : say('/강행 뒤에 질문을 적어 주세요.')),
+  깊게: (arg) => (arg ? send(arg, webMode ? 'search' : null, { deep: true }) : say(t('said.needQuestion', { cmd: Commands.slash('깊게') }))),
+  강행: (arg) => (arg ? send(arg, webMode ? 'search' : null, { overBudget: true }) : say(t('said.needQuestion', { cmd: Commands.slash('강행') }))),
   밥: feed,
   쓰다듬기: pat,
   상태: async () => {
     const { fullness, patted } = await window.api.petStatus();
-    say(`배부름 ${fullness}% · 쓰다듬은 횟수 ${patted}번. ${fullness < 30 ? '배고파요…' : fullness > 85 ? '배불러서 졸려요.' : '이 정도면 일할 만해요.'}`);
+    say(t('pet.status', { fullness, patted, mood: t(fullness < 30 ? 'pet.hungry' : fullness > 85 ? 'pet.stuffed' : 'pet.fine') }));
   },
   브리핑: briefing,
   화면공유: (arg) => shareScreen(arg),
   클립보드: async () => {
     setAttached(await window.api.attachClipboard());
-    say('클립보드 내용을 첨부했어요.');
+    say(t('attach.clipboard'));
   },
   다시: async () => {
     const question = await window.api.retry();
     if (question) send(question, webMode ? 'search' : null, { retry: true });
-    else say('다시 할 답변이 없어요.');
+    else say(t('said.noRetry'));
   },
-  복사: async () => say((await window.api.copyReply()) ? '마지막 답변을 복사했어요.' : '복사할 답변이 없어요.'),
-  요약: (arg) => send(arg ? `다음 글을 세 줄로 요약해 줘.\n\n${arg}` : '지금까지 우리 대화를 세 줄로 요약해 줘.'),
-  번역: (arg) => (arg ? send(translatePrompt(arg)) : say('/번역 뒤에 글을 적어 주세요.')),
+  복사: async () => say(t((await window.api.copyReply()) ? 'said.copied' : 'said.nothingToCopy')),
+  요약: (arg) => send(arg ? `${t('prompt.summarizeText')}\n\n${arg}` : t('prompt.summarizeChat')),
+  번역: (arg) => (arg ? send(translatePrompt(arg)) : say(t('said.needText', { cmd: Commands.slash('번역') }))),
   모델: async (arg) => {
     const profile = config.profiles.find((p) => p.id === arg || p.name === arg);
-    if (!profile) return say('설정에 있는 연결을 골라 주세요.');
+    if (!profile) return say(t('said.pickProfile'));
     await window.api.appAction('profile', profile.id);
     config = await window.api.getConfig();
-    return say(`${profile.name}(으)로 바꿨어요.`);
+    return say(t('said.switched', { name: profile.name }));
   },
   새대화: async () => {
     await window.api.clearHistory();
-    say('새 대화를 시작했어요. 지난 대화는 기록 창에서 이어 갈 수 있어요.');
+    say(t('said.newChat'));
   },
   사용량: showUsage,
   표정: (arg) => {
-    if (!Motions.PRESETS[arg]) return say('목록에서 표정을 골라 주세요.');
+    if (!Motions.PRESETS[arg]) return say(t('said.pickEmotion'));
     character.preview(arg);
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => character.relax(), 5000);
     return undefined;
   },
-  동작: (arg) => (Motions.CLIPS[arg] ? character.play(arg) : say('목록에서 동작을 골라 주세요.')),
-  음소거: async () => say((await window.api.appAction('mute')).muted ? '음소거했어요.' : '음소거를 풀었어요.'),
+  동작: (arg) => (Motions.CLIPS[arg] ? character.play(arg) : say(t('said.pickClip'))),
+  음소거: async () => say(t((await window.api.appAction('mute')).muted ? 'said.muted' : 'said.unmuted')),
   SD: () => window.api.appAction('sd'),
   상반신: () => window.api.appAction('bust'),
   기록: () => window.api.appAction('log'),
@@ -1085,7 +1085,7 @@ quickEl.addEventListener('click', async (e) => {
 
 function setMuteButton(muted) {
   muteButton.setAttribute('aria-pressed', String(muted));
-  muteButton.title = muted ? '음소거 해제 (음성 합성 꺼짐)' : '음소거 (음성 합성 끄기)';
+  muteButton.title = t(muted ? 'ui.muteOn' : 'ui.muteOff');
 }
 
 // A second click soon after is a pat, so the first has to wait a moment.
@@ -1187,7 +1187,18 @@ window.api.onMuted((muted) => {
   stopSpeech();
 });
 window.api.onCursor(({ x, y }) => updateHit(x, y));
-window.api.onConfigChanged(async () => { config = await window.api.getConfig(); });
+function applyLanguage() {
+  I18n.setLang(config.language);
+  I18n.apply();
+  inputBar.dataset.badge = t('ui.commandBadge');
+  document.getElementById('confirm-image').alt = t('ui.preview');
+  setMuteButton(muteButton.getAttribute('aria-pressed') === 'true');
+}
+
+window.api.onConfigChanged(async () => {
+  config = await window.api.getConfig();
+  applyLanguage();
+});
 
 function applyMetrics() {
   character.top = BUBBLE_SPACE * config.character.scale;
@@ -1196,6 +1207,7 @@ function applyMetrics() {
 
 (async () => {
   config = await window.api.getConfig();
+  applyLanguage();
   const status = await window.api.modelStatus();
   character = new Character(canvas, {
     mode: config.character.mode,
@@ -1204,7 +1216,7 @@ function applyMetrics() {
   document.body.dataset.mode = config.character.mode;
   setMuteButton((await window.api.appAction('state')).muted);
   if (!status.dir) {
-    showBubble('모델 폴더를 찾지 못했어요. 설정에서 지정해 주세요.', 'error');
+    showBubble(t('chat.modelMissing'), 'error');
     return;
   }
   try {
@@ -1212,6 +1224,6 @@ function applyMetrics() {
     window.dscReady = true;
     setTimeout(checkHunger, 1500);
   } catch (err) {
-    showBubble(`모델을 불러오지 못했어요: ${err.message}`, 'error');
+    showBubble(t('chat.modelFailed', { error: err.message }), 'error');
   }
 })();

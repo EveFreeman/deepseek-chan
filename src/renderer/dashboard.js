@@ -15,7 +15,9 @@ const $ = (id) => document.getElementById(id);
   img.src = sources.shift();
 }
 
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+// Text from the locale tables, escaped for the markup built below.
+const T = (key, vars) => esc(I18n.t(key, vars));
 const dayStart = (ms) => new Date(ms).setHours(0, 0, 0, 0);
 const dayKey = (ms) => {
   const d = new Date(ms);
@@ -49,10 +51,10 @@ function renderTiles() {
   const tile = (label, value, sub, extra = '') =>
     `<div class="tile"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div>${extra}</div>`;
   $('tiles').innerHTML =
-    tile('오늘', money(sum(today, cost)), `${today.filter((r) => r.kind === 'chat').length}회 요청`) +
-    tile('이번 달', money(monthCost), budget ? `예산 ${money(budget)}의 ${Math.round(used * 100)}%` : '예산 미설정', meter) +
-    tile('전체 누적', money(sum(dash.records, cost)), `${dash.records.filter((r) => r.kind === 'chat').length}회 요청`) +
-    tile('이번 달 토큰', sum(month, tokens).toLocaleString(), `입력 ${sum(month, (r) => (r.cacheHit ?? 0) + (r.cacheMiss ?? 0)).toLocaleString()} · 출력 ${sum(month, (r) => r.output ?? 0).toLocaleString()}`);
+    tile(T('ui.today'), money(sum(today, cost)), T('ui.requests', { n: today.filter((r) => r.kind === 'chat').length })) +
+    tile(T('ui.thisMonth'), money(monthCost), budget ? T('ui.budgetUsed', { budget: money(budget), pct: Math.round(used * 100) }) : T('ui.noBudget'), meter) +
+    tile(T('ui.allTime'), money(sum(dash.records, cost)), T('ui.requests', { n: dash.records.filter((r) => r.kind === 'chat').length })) +
+    tile(T('ui.monthTokens'), sum(month, tokens).toLocaleString(), T('ui.tokensSplit', { input: sum(month, (r) => (r.cacheHit ?? 0) + (r.cacheMiss ?? 0)).toLocaleString(), output: sum(month, (r) => r.output ?? 0).toLocaleString() }));
 }
 
 // Series color follows first appearance over all history, so a filter never
@@ -61,7 +63,7 @@ function seriesList() {
   const order = [];
   for (const r of dash.records) if (!order.some((s) => s.id === r.profileId)) order.push({ id: r.profileId, name: r.profileName });
   const main = order.slice(0, MAX_SERIES - 1);
-  if (order.length >= MAX_SERIES) main.push({ id: '__other', name: '기타' });
+  if (order.length >= MAX_SERIES) main.push({ id: '__other', name: I18n.t('ui.other') });
   return main.map((s, i) => ({ ...s, color: `var(--s${i + 1})` }));
 }
 
@@ -102,7 +104,7 @@ function renderChart() {
   const slot = plotW / days.length;
   const barW = Math.max(Math.min(slot - 2, 24), 2);
 
-  let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="일별 추산 비용 차트">`;
+  let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${T('ui.chartLabel')}">`;
   for (let i = 0; i <= 4; i++) {
     const v = (top * i) / 4;
     svg += `<line x1="${pad.l}" x2="${width - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/>`;
@@ -162,18 +164,18 @@ function renderTables() {
     <td class="num">${sum(g.list, (r) => r.output ?? 0).toLocaleString()}</td>
     <td class="num">${money(sum(g.list, cost))}</td></tr>`);
   $('by-api').innerHTML = rows.length
-    ? `<tr><th>API</th><th>모델</th><th class="num">요청</th><th class="num">입력</th><th class="num">캐시 입력</th><th class="num">출력</th><th class="num">비용</th></tr>${rows.join('')}`
-    : '<tr><td class="empty">이 기간의 기록이 없습니다.</td></tr>';
+    ? `<tr><th>${T('ui.colApi')}</th><th>${T('ui.colModel')}</th><th class="num">${T('ui.colRequests')}</th><th class="num">${T('ui.colInput')}</th><th class="num">${T('ui.colCached')}</th><th class="num">${T('ui.colOutput')}</th><th class="num">${T('ui.colCost')}</th></tr>${rows.join('')}`
+    : `<tr><td class="empty">${T('ui.noRecordsRange')}</td></tr>`;
 
   const recent = dash.records.filter((r) => r.kind === 'chat').slice(-10).reverse().map((r) => `
-    <tr><td>${new Date(r.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-    <td>${esc(r.profileName)}${r.estimated ? '<span class="tag">추정</span>' : ''}</td>
+    <tr><td>${new Date(r.ts).toLocaleString(I18n.dateLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+    <td>${esc(r.profileName)}${r.estimated ? `<span class="tag">${T('ui.estimated')}</span>` : ''}</td>
     <td class="num">${((r.cacheHit ?? 0) + (r.cacheMiss ?? 0)).toLocaleString()}</td>
     <td class="num">${(r.output ?? 0).toLocaleString()}</td>
     <td class="num">${money(cost(r))}</td></tr>`);
   $('recent').innerHTML = recent.length
-    ? `<tr><th>시각</th><th>API</th><th class="num">입력</th><th class="num">출력</th><th class="num">비용</th></tr>${recent.join('')}`
-    : '<tr><td class="empty">아직 요청이 없습니다.</td></tr>';
+    ? `<tr><th>${T('ui.colTime')}</th><th>${T('ui.colApi')}</th><th class="num">${T('ui.colInput')}</th><th class="num">${T('ui.colOutput')}</th><th class="num">${T('ui.colCost')}</th></tr>${recent.join('')}`
+    : `<tr><td class="empty">${T('ui.noRequests')}</td></tr>`;
 }
 
 function renderDashboard() {
@@ -204,7 +206,7 @@ $('currency').addEventListener('click', (e) => {
   renderDashboard();
 });
 $('clear-usage').addEventListener('click', async () => {
-  if (!confirm('사용 기록을 모두 삭제할까요? 되돌릴 수 없습니다.')) return;
+  if (!confirm(I18n.t('ui.clearUsageConfirm'))) return;
   await window.api.clearUsage();
 });
 

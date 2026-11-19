@@ -9,7 +9,7 @@ failed=0
 
 # Settings, encrypted keys, conversation logs and usage live in data/. The rest are
 # installed files, or the model and voice, which may not be redistributed.
-paths=$(printf '%s\n' "$staged" | grep -E '^(data|runtime|custom|vendor|node_modules|DeepSeek-chan\.app)/|^(live2d|voice)/' \
+paths=$(printf '%s\n' "$staged" | grep -E '^(data|runtime|custom|vendor|node_modules|recordings|DeepSeek-chan\.app)/|^(live2d|voice)/|^[^/]+\.zip$' \
   | grep -vE '^(live2d|voice)/README\.md$')
 names=$(printf '%s\n' "$staged" | grep -E '(^|/)(config\.json|history\.json|transcript\.jsonl|usage\.jsonl|assist\.json|session\.json|\.env)$')
 if [ -n "$paths$names" ]; then

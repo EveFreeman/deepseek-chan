@@ -29,16 +29,19 @@ ZIP으로 받아도 됩니다. Windows는 `C:\deepseek-chan`처럼 짧고 영문
 
 약 5GB를 내려받으며 20~40분 걸립니다. 실패하면 다시 실행하세요. 받은 것은 다시 받지 않습니다. 기록은 `runtime/setup.log`에 남습니다.
 
-### 3. 모델과 음성 넣기
+### 3. 모델과 음성 받기
 
-재배포가 금지된 두 가지는 저장소에 없습니다. 원래 배포처에서 직접 받아 넣으세요.
+재배포가 금지된 두 가지는 저장소에 없고, 설치 스크립트의 마지막 단계가 원래 배포처에서 받아 옵니다.
 
-| 넣을 곳 | 받을 것 | 배포처 |
-|---|---|---|
-| `live2d/` | DeepSeek-chan 무료 Live2D 모델 | [VGen (제작자 KAMIYA)](https://vgen.co/KAMIYA/product/deepseek-chan-deepseek-free-live2d-model-layered-psd-psd/1c55a71a-2747-4616-819d-2dc0a934089d) |
-| `voice/` | つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠） | [つくよみちゃん 공식](https://tyc.rei-yumesaki.net/material/corpus/) |
+| 넣을 곳 | 받을 것 | 배포처 | 받는 방법 |
+|---|---|---|---|
+| `voice/` | つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）, 약 520MB | [つくよみちゃん 공식](https://tyc.rei-yumesaki.net/material/corpus/) | 이용 규약 요약을 보여 주고 동의(`y`)하면 공식 링크에서 받습니다. `o`를 누르면 규약 페이지를 엽니다 |
+| `live2d/` | DeepSeek-chan 무료 Live2D 모델 | [VGen (제작자 KAMIYA)](https://vgen.co/KAMIYA/product/deepseek-chan-deepseek-free-live2d-model-layered-psd-psd/1c55a71a-2747-4616-819d-2dc0a934089d) | VGen은 로그인한 사람에게만 무료 모델을 주므로 브라우저로 페이지를 엽니다. 거기서 내려받으면 설치 스크립트가 `다운로드` 폴더의 zip을 찾아 풉니다 (최대 30분 기다림) |
 
-압축을 풀어 폴더째 넣으면 됩니다. 앱이 `大肥鱼.model3.json`과 `VOICEACTRESS100_011.wav`를 이름으로 찾으므로 폴더 이름은 상관없습니다. 각 배포처의 이용 규약을 지켜 주세요.
+- 이 폴더나 `다운로드` 폴더에 이미 받아 둔 zip이 있으면 그것을 씁니다.
+- 건너뛰었으면 설치 스크립트를 다시 실행하거나, 압축을 풀어 폴더째 넣으세요. 앱이 `大肥鱼.model3.json`과 `VOICEACTRESS100_011.wav`를 이름으로 찾으므로 폴더 이름은 상관없습니다.
+- 이 단계만 다시 하려면: `runtime\node\node.exe scripts\fetch-assets.js` (Mac: `runtime/node/bin/node scripts/fetch-assets.js`)
+- 각 배포처의 이용 규약을 지켜 주세요. 모델 규약은 zip 안의 `Terms of Use` 파일에 있습니다.
 
 ### 4. 실행
 
@@ -56,7 +59,7 @@ git clone으로 받은 폴더는 앱 안에서 업데이트됩니다. 설정 > �
 - 설정, 키, 대화 기록(`data/`)은 그대로 남습니다.
 - npm 패키지가 바뀌었으면 함께 설치합니다. 음성 엔진이나 Electron이 바뀌었으면 설치 스크립트를 한 번 다시 실행하라고 안내합니다.
 - 그 기기에서 코드를 직접 고쳤으면 덮어쓰지 않고 멈춥니다.
-- 저장소가 비공개면 그 기기의 git에 GitHub 로그인이 되어 있어야 합니다. 처음 clone할 때 로그인했다면 따로 할 일은 없습니다. ZIP으로 받은 폴더는 앱에서 업데이트할 수 없습니다.
+- ZIP으로 받은 폴더는 앱에서 업데이트할 수 없습니다. 새 버전은 [Releases](https://github.com/EveFreeman/deepseek-chan/releases)에서 받으세요.
 
 ### 선택: 내 그림 넣기
 
@@ -67,7 +70,7 @@ git clone으로 받은 폴더는 앱 안에서 업데이트됩니다. 설정 > �
 | 폴더 | 내용 | git |
 |---|---|---|
 | `src/` `assets/` `scripts/` `test/` | 앱 코드 | 포함 |
-| `live2d/` `voice/` | 직접 넣는 모델과 음성 | 제외 |
+| `live2d/` `voice/` | 설치 스크립트가 배포처에서 받아 오는 모델과 음성 | 제외 |
 | `runtime/` | 설치 스크립트가 만드는 Node.js, Python, GPT-SoVITS, Whisper | 제외 |
 | `vendor/` | 설치 때 받는 Live2D Cubism Core와 패치한 렌더러 | 제외 |
 | `data/` | 설정, 암호화된 API 키, 대화 기록 | 제외 |
@@ -148,7 +151,21 @@ npm test
 - `src/main/` Electron 메인: 창, 트레이, 메뉴, 단축키, LLM(`llm.js`), 음성(`gptsovits.js`, `stt.js`), 요금(`pricing.js`), 설정(`store.js`), 대화 기록(`transcript.js`)
 - `src/renderer/` `companion.*` 플로팅 캐릭터, `control.*` 설정 창, `character.js` Live2D 제어
 - `src/shared/` 동작 프리셋(`motions.js`), 명령어, 태그 파서
+- `scripts/fetch-assets.js` 모델과 음성을 배포처에서 받아 `live2d/` `voice/`에 풉니다. Shift_JIS 파일 이름을 그대로 살립니다.
 - `scripts/patch-live2d.js` 모델의 곱하기/스크린 색을 지원하도록 `pixi-live2d-display` 렌더러를 패치해 `vendor/`에 씁니다. `npm install` 때 자동으로 실행됩니다.
 - 앱 안 자동 시험: `DSC_USER_DATA`(임시 프로필), `DSC_TEST_HOOK`(메인 프로세스에서 실행할 스크립트)
 
 SD 모드는 모델에 내장된 `Clothes2` 파라미터(체형 변환)를 사용합니다. 앱은 모델 원본 파일을 수정하지 않고 읽기만 합니다.
+
+## 크레딧
+
+- **DeepSeek-chan Live2D 모델**: 일러스트·PSD 레이어 분리 Kamiya Ryoko, Live2D 리깅 霓虹猫_NeonNeko. [VGen](https://vgen.co/KAMIYA)에서 무료 배포. 이 앱의 제작자와 무관하며, 모델은 이 저장소에 들어 있지 않습니다.
+- **음성**: 음성 합성에는 프리 소재 캐릭터 「つくよみちゃん」이 무료 공개한 음성 데이터를 사용합니다. ■つくよみちゃんコーパス（CV.夢前黎） https://tyc.rei-yumesaki.net/material/corpus/
+- **대시보드 그림**(`assets/dashboard.png`): DeepSeek-chan 팬아트. 캐릭터 원작 Kamiya Ryoko.
+- **엔진**: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS), [Live2D Cubism Core](https://www.live2d.com/) (Live2D Proprietary Software License, 설치 때 Live2D에서 받음), [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display), [Electron](https://www.electronjs.org/)
+
+같은 크레딧이 앱의 설정 > 업데이트 화면에도 표시됩니다. 이 앱으로 만든 영상이나 방송을 공개할 때는 모델과 음성의 크레딧을 함께 적어 주세요.
+
+## 라이선스
+
+이 저장소의 코드는 [MIT 라이선스](LICENSE)입니다. 모델, 음성 코퍼스, Live2D Cubism Core, GPT-SoVITS는 각 배포처의 규약을 따릅니다.

@@ -529,3 +529,48 @@ test('idle acts use known clips and never turn the arms', () => {
     }
   }
 });
+
+// A stored-only zip with the given names, to test the setup's unzip.
+function storedZip(files) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const [name, text, utf8] of files) {
+    const n = Buffer.from(name, utf8 ? 'utf8' : 'latin1');
+    const data = Buffer.from(text);
+    const crc = require('zlib').crc32(data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(utf8 ? 0x800 : 0, 6);
+    local.writeUInt32LE(crc, 14); local.writeUInt32LE(data.length, 18); local.writeUInt32LE(data.length, 22); local.writeUInt16LE(n.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(utf8 ? 0x800 : 0, 8);
+    central.writeUInt32LE(crc, 16); central.writeUInt32LE(data.length, 20); central.writeUInt32LE(data.length, 24);
+    central.writeUInt16LE(n.length, 28); central.writeUInt32LE(offset, 42);
+    locals.push(local, n, data);
+    centrals.push(central, n);
+    offset += 30 + n.length + data.length;
+  }
+  const cd = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, cd, end]);
+}
+
+test('setup unzip: unpacks names and refuses paths outside the folder', () => {
+  const { unzip } = require('../scripts/fetch-assets');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsc-zip-'));
+  try {
+    const good = path.join(dir, 'good.zip');
+    fs.writeFileSync(good, storedZip([['つくよみ/a.txt', 'hi', true]]));
+    unzip(good, path.join(dir, 'out'));
+    assert.strictEqual(fs.readFileSync(path.join(dir, 'out', 'つくよみ', 'a.txt'), 'utf8'), 'hi');
+
+    const evil = path.join(dir, 'evil.zip');
+    fs.writeFileSync(evil, storedZip([['../escaped.txt', 'x', false]]));
+    assert.throws(() => unzip(evil, path.join(dir, 'out2')), /unsafe path/);
+    assert.ok(!fs.existsSync(path.join(dir, 'escaped.txt')));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

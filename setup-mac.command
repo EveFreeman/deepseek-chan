@@ -24,7 +24,7 @@ export HF_HOME="$RT/cache/huggingface"
 export PIP_NO_WARN_SCRIPT_LOCATION=1
 export TERM="${TERM:-xterm}"
 
-echo; echo "[1/4] Node.js (private copy)"
+echo; echo "[1/5] Node.js (private copy)"
 if [ ! -x "$RT/node/bin/node" ]; then
   curl -fL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-darwin-arm64.tar.gz" | tar -xz -C "$RT"
   rm -rf "$RT/node"
@@ -35,12 +35,12 @@ export PATH="$RT/node/bin:$PATH"
 # In a git clone, refuse commits that would publish settings, keys or logs.
 if [ -d .git ] && command -v git >/dev/null; then git config core.hooksPath scripts/git-hooks; fi
 
-echo; echo "[2/4] App files"
+echo; echo "[2/5] App files"
 npm install
 # Newer npm skips install scripts of dependencies, so Electron is fetched here.
 node node_modules/electron/install.js
 
-echo; echo "[3/4] Python (private copy)"
+echo; echo "[3/5] Python (private copy)"
 if [ ! -x "$RT/micromamba" ]; then
   curl -fL -o "$RT/micromamba" https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-osx-arm64
   chmod +x "$RT/micromamba"
@@ -50,9 +50,12 @@ if [ ! -x "$RT/env/bin/python" ]; then
 fi
 export PATH="$RT/env/bin:$PATH"
 
-echo; echo "[4/4] Voice engines"
+echo; echo "[4/5] Voice engines"
 "$RT/env/bin/python" scripts/python/setup_engines.py
+
+echo; echo "[5/5] Model and voice (from their official pages)"
+node scripts/fetch-assets.js
 
 zsh scripts/make-mac-launcher.sh
 echo
-echo "Done. Put the model and the voice in live2d/ and voice/ (see README.md), then open DeepSeek-chan.app."
+echo "Done. Open DeepSeek-chan.app. If the model or the voice was skipped, see README.md."

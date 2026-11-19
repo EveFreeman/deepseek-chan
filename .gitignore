@@ -16,3 +16,7 @@
 
 .DS_Store
 __pycache__/
+
+# Downloaded model/voice zips and screen recordings
+/*.zip
+/recordings/

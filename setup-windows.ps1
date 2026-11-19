@@ -45,7 +45,7 @@ if ($root.Length -gt 90) {
 New-Item -ItemType Directory -Force -Path $rt | Out-Null
 Start-Transcript -Path (Join-Path $rt 'setup.log') -Force | Out-Null
 
-Write-Host "`n[1/5] Node.js (private copy)" -ForegroundColor Cyan
+Write-Host "`n[1/6] Node.js (private copy)" -ForegroundColor Cyan
 if (-not (Test-Path (Join-Path $nodeDir 'node.exe'))) {
   $zip = Join-Path $rt 'node.zip'
   Download "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip" $zip
@@ -56,7 +56,7 @@ if (-not (Test-Path (Join-Path $nodeDir 'node.exe'))) {
 }
 $env:PATH = "$nodeDir;$env:PATH"
 
-Write-Host "`n[2/5] App files" -ForegroundColor Cyan
+Write-Host "`n[2/6] App files" -ForegroundColor Cyan
 Set-Location $root
 # In a git clone, refuse commits that would publish settings, keys or logs.
 if ((Test-Path '.git') -and (Get-Command git -ErrorAction SilentlyContinue)) { git config core.hooksPath scripts/git-hooks }
@@ -65,7 +65,7 @@ Run (Join-Path $nodeDir 'npm.cmd') install
 # Newer npm skips install scripts of dependencies, so Electron is fetched here.
 Run (Join-Path $nodeDir 'node.exe') 'node_modules\electron\install.js'
 
-Write-Host "`n[3/5] Python (private copy)" -ForegroundColor Cyan
+Write-Host "`n[3/6] Python (private copy)" -ForegroundColor Cyan
 if (-not (Test-Path $micromamba)) {
   Download 'https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-win-64.exe' $micromamba
 }
@@ -74,10 +74,15 @@ if (-not (Test-Path $python)) {
 }
 $env:PATH = "$envDir;$envDir\Scripts;$envDir\Library\bin;$env:PATH"
 
-Write-Host "`n[4/5] Voice engines" -ForegroundColor Cyan
+Write-Host "`n[4/6] Voice engines" -ForegroundColor Cyan
 Run $python (Join-Path $root 'scripts\python\setup_engines.py')
 
-Write-Host "`n[5/5] Desktop shortcut" -ForegroundColor Cyan
+Write-Host "`n[5/6] Model and voice (from their official pages)" -ForegroundColor Cyan
+# Run directly, not through Run: it asks questions, and a pipe would hide the prompts.
+& (Join-Path $nodeDir 'node.exe') (Join-Path $root 'scripts\fetch-assets.js')
+if ($LASTEXITCODE -ne 0) { throw "Failed ($LASTEXITCODE): fetch-assets.js" }
+
+Write-Host "`n[6/6] Desktop shortcut" -ForegroundColor Cyan
 $shell = New-Object -ComObject WScript.Shell
 $link = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'DeepSeek-chan.lnk'))
 $link.TargetPath = 'wscript.exe'
@@ -86,4 +91,4 @@ $link.WorkingDirectory = $root
 $link.IconLocation = Join-Path $root 'assets\icon.ico'
 $link.Save()
 
-Write-Host "`nDone. Put the model and the voice in live2d\ and voice\ (see README.md), then use the DeepSeek-chan shortcut." -ForegroundColor Green
+Write-Host "`nDone. Start DeepSeek-chan from the desktop shortcut. If the model or the voice was skipped, see README.md." -ForegroundColor Green

@@ -1,7 +1,7 @@
 {
   "name": "deepseek-chan-assistant",
   "productName": "DeepSeek-chan",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Live2D desktop assistant for macOS and Windows",
   "main": "src/main/index.js",
